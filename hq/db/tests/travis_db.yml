@@ -1,0 +1,10 @@
+name: test
+database_file: test.sqlite
+hyperparams:
+  P_min: 8 day
+  P_max: 8192 day
+  requested_samples_per_star: 128 # M_min
+prior:
+  max_samples: 1048576
+  num_cache: 2097152
+  samples_file: P8-8192_prior_samples.hdf5
