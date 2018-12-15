@@ -1,3 +1,5 @@
+# TODO: add support for trend specification in the config file
+
 # Standard library
 from os.path import join
 

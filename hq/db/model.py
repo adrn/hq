@@ -1,5 +1,3 @@
-from __future__ import division, print_function
-
 # Standard library
 import datetime
 
@@ -22,7 +20,7 @@ from . import numpy_adapt # just need to execute code
 
 
 __all__ = ['AllStar', 'AllVisit', 'JokerRun', 'StarResult',
-           'Status', 'AllVisitToAllStar', 'NessRG']
+           'Status', 'AllVisitToAllStar']
 
 
 class Status(Base):
@@ -549,50 +547,3 @@ class JokerRun(Base):
 
         return JokerParams(P_min=self.P_min, P_max=self.P_max,
                            anomaly_tol=anomaly_tol, **jitter_kwargs)
-
-
-class NessRG(Base):
-    __tablename__ = 'nessrg'
-
-    id = Column(types.Integer, primary_key=True)
-
-    allstar_id = Column('allstar_id', types.Integer,
-                        ForeignKey('allstar.id', ondelete='CASCADE'),
-                        index=True)
-    star = relationship("AllStar", backref=backref("ness_rg", uselist=False))
-
-    # Melissa Ness' masses and ages from:
-    # http://iopscience.iop.org/article/10.3847/0004-637X/823/2/114/meta
-
-    # strip ()[], replace / with _
-    Type = Column('Type', types.Integer)
-    Teff = Column('Teff', types.REAL)
-    logg = Column('logg', types.REAL)
-    Fe_H = Column('Fe_H', types.REAL)
-    a_Fe = Column('a_Fe', types.REAL)
-    lnM = Column('lnM', types.REAL)
-    lnAge = Column('lnAge', types.REAL)
-    chi2 = Column('chi2', types.REAL)
-
-    e_Teff = Column('e_Teff', types.REAL)
-    e_logg = Column('e_logg', types.REAL)
-    e_Fe_H = Column('e_Fe_H', types.REAL)
-    e_a_Fe = Column('e_a_Fe', types.REAL)
-    e_logM = Column('e_logM', types.REAL)
-    e_logAge = Column('e_logAge', types.REAL)
-
-    @property
-    def mass(self):
-        return np.exp(self.lnM) * u.Msun
-
-    @property
-    def age(self):
-        return np.exp(self.lnAge) * u.Gyr
-
-    def get_mass_samples(self, size=1):
-        return np.exp(np.random.normal(self.lnM, self.e_logM,
-                                       size=size)) * u.Msun
-
-    def get_age_samples(self, size=1):
-        return np.exp(np.random.normal(self.lnAge, self.e_logAge,
-                                       size=size)) * u.Gyr

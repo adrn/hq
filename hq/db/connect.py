@@ -20,6 +20,7 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
 
     warnings.filterwarnings('ignore', ".*Decimal objects natively.*", SAWarning)
 
+
 def db_connect(database_path, ensure_db_exists=False):
     """
     Connect to the specified database.
@@ -47,3 +48,9 @@ def db_connect(database_path, ensure_db_exists=False):
         Base.metadata.create_all(engine)
 
     return Session, engine
+
+
+def session_from_config(config):
+    """TODO:"""
+    # TODO: get a session from a config file
+    pass

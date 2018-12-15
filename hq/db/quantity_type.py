@@ -21,5 +21,6 @@ def QuantityTypeClassFactory(unit):
                 value = value * unit
             return value
 
-    QuantityType.__name__ = '{}QuantityType'.format(unit.physical_type.title().replace(' ', ''))
+    QuantityType.__name__ = '{}QuantityType'.format(
+        unit.physical_type.title().replace(' ', ''))
     return QuantityType
