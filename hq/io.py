@@ -31,7 +31,7 @@ def load_samples(group_or_filename, apogee_id=None):
 
     samples_dict = dict()
     for k in group.keys():
-        if k == 'ln_prior_probs': # skip
+        if k == 'ln_prior_probs': # skip prob values
             continue
 
         samples_dict[k] = quantity_from_hdf5(group, k)

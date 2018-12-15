@@ -1,17 +1,14 @@
-from __future__ import print_function
-
 # Standard library
 import logging
 
 # Third-party
-from astropy.extern.six import PY3
 from astropy.logger import StreamHandler
 from astropy.utils import find_current_module
 
 __all__ = ['log']
 
 Logger = logging.getLoggerClass()
-class TwoFaceLogger(Logger):
+class HQLogger(Logger):
 
     def _set_defaults(self):
         """
@@ -22,7 +19,7 @@ class TwoFaceLogger(Logger):
         for handler in self.handlers[:]:
             self.removeHandler(handler)
 
-        # Set levels
+        # Set default level
         self.setLevel(logging.INFO)
 
         # Set up the stdout handler
@@ -40,14 +37,11 @@ class TwoFaceLogger(Logger):
             else:
                 extra['origin'] = 'unknown'
 
-        if PY3:
-            return Logger.makeRecord(self, name, level, pathname, lineno, msg,
-                                     args, exc_info, func=func, extra=extra,
-                                     sinfo=sinfo)
-        else:
-            return Logger.makeRecord(self, name, level, pathname, lineno, msg,
-                                     args, exc_info, func=func, extra=extra)
+        return Logger.makeRecord(self, name, level, pathname, lineno, msg,
+                                 args, exc_info, func=func, extra=extra,
+                                 sinfo=sinfo)
 
-logging.setLoggerClass(TwoFaceLogger)
-log = logging.getLogger('twoface')
+
+logging.setLoggerClass(HQLogger)
+log = logging.getLogger('hq')
 log._set_defaults()

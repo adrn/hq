@@ -4,17 +4,18 @@ from __future__ import division, print_function
 import datetime
 
 # Third-party
+from astropy.time import Time
 import astropy.units as u
 import numpy as np
 from sqlalchemy import Table, Column, types
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.ext.hybrid import hybrid_property
+from thejoker.data import RVData
 from thejoker.sampler import JokerParams
 
 # Project
 from ..mass import get_martig_vec
-from ..data import star_to_apogeervdata
 from .connect import Base
 from .quantity_type import QuantityTypeClassFactory
 from . import numpy_adapt # just need to execute code
@@ -292,9 +293,44 @@ class AllStar(Base):
         return ("<ApogeeStar(id='{0}', apogee_id='{1}', {2} results)>"
                 .format(self.id, self.apogee_id, len(self.results)))
 
-    def apogeervdata(self, clean=False):
-        """Return a `twoface.data.APOGEERVData` instance for this star. """
-        return star_to_apogeervdata(self, clean=clean)
+    def rvdata(self, clean=False):
+        """Return a `thejoker.data.RVData` instance for the star.
+
+        Parameters
+        ----------
+        star : `hq.db.AllStar`
+            The APOGEE star, a row from the APOGEE AllStar table.
+        clean : bool, optional
+            Clean radial velocity measurements by removing -9999 values and any
+            measurement with an uncertainty larger than 100 km/s.
+
+        Returns
+        -------
+        data : `thejoker.data.RVData`
+            The radial velocity data for the specified star.
+
+        """
+
+        jd = []
+        rv = []
+        rv_rand_err = []
+        for v in self.visits:
+            rv.append(float(v.vhelio))
+            jd.append(float(v.jd))
+            rv_rand_err.append(float(v.vrelerr))
+
+        t = Time(jd, format='jd', scale='utc') # TODO: is it Barycentric JD?
+        rv = rv * u.km/u.s
+        rv_err = rv_rand_err * u.km/u.s
+
+        data = RVData(t=t, rv=rv, stddev=rv_err)
+
+        if clean:
+            bad_mask = (np.isclose(np.abs(data.rv.value), 9999.) |
+                        (data.stddev.to(u.km/u.s).value >= 100.))
+            data = data[~bad_mask]
+
+        return data
 
     @property
     def fparam(self):
