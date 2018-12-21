@@ -1,7 +1,7 @@
 # TODO: allow customizing bitmasks used. Also, let dwarfs in that pass the qualtiy cuts!
 
 # Standard library
-from os.path import abspath, expanduser, join
+from os.path import abspath, expanduser
 
 # Third-party
 from astropy.io import fits
@@ -9,8 +9,6 @@ from astropy.table import Table
 import numpy as np
 
 # Project
-from ..config import HQ_CACHE_PATH
-from ..util import Timer
 from ..log import log as logger
 from .connect import db_connect, Base
 from .model import AllStar, AllVisit, Status
@@ -40,8 +38,8 @@ def tblrow_to_dbrow(tblrow, colnames, varchar_cols=[]):
 
     return row_data
 
-def initialize_db(allVisit_file, allStar_file, database_file,
-                  drop_all=False, batch_size=4096):
+def initialize_db(allVisit_file, allStar_file, database_path,
+                  drop_all=False, batch_size=4096, progress=True):
     """Initialize the database given FITS filenames for the APOGEE data.
 
     Parameters
@@ -58,7 +56,13 @@ def initialize_db(allVisit_file, allStar_file, database_file,
         How many rows to create before committing.
     """
 
-    database_path = join(TWOFACE_CACHE_PATH, database_file)
+    if progress:
+        from tqdm import tqdm
+        iterate = tqdm
+        load_print = tqdm.write
+    else:
+        iterate = lambda x: x
+        load_print = print
 
     norm = lambda x: abspath(expanduser(x))
     allvisit_tbl = fits.getdata(norm(allVisit_file))
@@ -165,25 +169,22 @@ def initialize_db(allVisit_file, allStar_file, database_file,
     logger.debug("{0} stars left to load".format(mask.sum()))
 
     stars = []
-    with Timer() as t:
-        i = 0
-        for row in allstar_tbl[mask]: # Load every star
-            row_data = tblrow_to_dbrow(row, allstar_colnames, allstar_varchar)
+    i = 0
+    for row in iterate(allstar_tbl[mask]): # Load every star
+        row_data = tblrow_to_dbrow(row, allstar_colnames, allstar_varchar)
 
-            # create a new object for this row
-            star = AllStar(**row_data)
-            stars.append(star)
-            logger.log(1, 'Adding star {0} to database'.format(star))
+        # create a new object for this row
+        star = AllStar(**row_data)
+        stars.append(star)
 
-            if i % batch_size == 0 and i > 0:
-                session.add_all(stars)
-                session.commit()
-                logger.debug("Loaded batch {0} ({1:.2f} seconds)"
-                             .format(i, t.elapsed()))
-                t.reset()
-                stars = []
+        if i % batch_size == 0 and i > 0:
+            session.add_all(stars)
+            session.commit()
+            if logger.getEffectiveLevel() <= 10:
+                load_print("Loaded batch {0}".format(i))
+            stars = []
 
-            i += 1
+        i += 1
 
     if len(stars) > 0:
         session.add_all(stars)
@@ -202,25 +203,22 @@ def initialize_db(allVisit_file, allStar_file, database_file,
     logger.debug("{0} visits left to load".format(mask.sum()))
 
     visits = []
-    with Timer() as t:
-        i = 0
-        for row in allvisit_tbl[mask]: # Load every visit
-            row_data = tblrow_to_dbrow(row, allvisit_colnames, allvisit_varchar)
+    i = 0
+    for row in iterate(allvisit_tbl[mask]): # Load every visit
+        row_data = tblrow_to_dbrow(row, allvisit_colnames, allvisit_varchar)
 
-            # create a new object for this row
-            visit = AllVisit(**row_data)
-            visits.append(visit)
-            logger.log(1, 'Adding visit {0} to database'.format(visit))
+        # create a new object for this row
+        visit = AllVisit(**row_data)
+        visits.append(visit)
 
-            if i % batch_size == 0 and i > 0:
-                session.add_all(visits)
-                session.commit()
-                logger.debug("Loaded batch {0} ({1:.2f} seconds)"
-                             .format(i, t.elapsed()))
-                t.reset()
-                visits = []
+        if i % batch_size == 0 and i > 0:
+            session.add_all(visits)
+            session.commit()
+            if logger.getEffectiveLevel() <= 10:
+                load_print("Loaded batch {0}".format(i))
+            visits = []
 
-            i += 1
+        i += 1
 
     if len(visits) > 0:
         session.add_all(visits)
@@ -239,7 +237,7 @@ def initialize_db(allVisit_file, allStar_file, database_file,
 
     q = session.query(AllStar).order_by(AllStar.id)
 
-    for i, sub_q in enumerate(paged_query(q, page_size=batch_size)):
+    for i, sub_q in iterate(enumerate(paged_query(q, page_size=batch_size))):
         for star in sub_q:
             if len(star.visits) > 0:
                 continue
@@ -251,13 +249,11 @@ def initialize_db(allVisit_file, allStar_file, database_file,
                 logger.warn("Visits not found for star {0}".format(star))
                 continue
 
-            logger.log(1, 'Attaching {0} visits to star {1}'
-                       .format(len(visits), star))
-
             star.visits = visits
 
-        logger.debug("Committing batch {0}".format(i))
         session.commit()
+        if logger.getEffectiveLevel() <= 10:
+            load_print("Loaded batch {0}".format(i))
 
     session.commit()
     session.close()

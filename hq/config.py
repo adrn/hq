@@ -24,13 +24,16 @@ logger.debug("Using cache path:\n\t {}\nSet the environment variable "
 def config_to_jokerparams(config):
     P_min = u.Quantity(*config['hyperparams']['P_min'].split())
     P_max = u.Quantity(*config['hyperparams']['P_max'].split())
+    kwargs = dict(P_min=P_min, P_max=P_max)
+
+    if 'poly_trend' in config['hyperparams']:
+        kwargs['poly_trend'] = config['hyperparams']['poly_trend']
 
     if 'jitter' in config['hyperparams']:
         # jitter is fixed to some quantity, specified in config file
         jitter = u.Quantity(*config['hyperparams']['jitter'].split())
         logger.debug('Jitter is fixed to: {0:.2f}'.format(jitter))
-        joker_pars = JokerParams(P_min=P_min, P_max=P_max,
-                                 jitter=jitter)
+        kwargs['jitter'] = jitter
 
     elif 'jitter_prior_mean' in config['hyperparams']:
         # jitter prior parameters are specified in config file
@@ -41,11 +44,7 @@ def config_to_jokerparams(config):
                      'log(var) = {1:.2f}) [{2}]'
                      .format(np.sqrt(np.exp(jitter_mean)),
                              jitter_stddev, jitter_unit))
-        joker_pars = JokerParams(P_min=P_min, P_max=P_max,
-                                 jitter=(jitter_mean, jitter_stddev),
-                                 jitter_unit=u.Unit(jitter_unit))
+        kwargs['jitter'] = (jitter_mean, jitter_stddev)
+        kwargs['jitter_unit'] = u.Unit(jitter_unit)
 
-    else:
-        joker_pars = JokerParams(P_min=P_min, P_max=P_max)
-
-    return joker_pars
+    return JokerParams(**kwargs)

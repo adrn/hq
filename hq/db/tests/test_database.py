@@ -7,7 +7,7 @@ from astropy.utils.data import get_pkg_data_filename
 import yaml
 
 # Project
-from ...config import TWOFACE_CACHE_PATH
+from ...config import HQ_CACHE_PATH
 from ..connect import db_connect
 from ..model import AllStar, AllVisit, StarResult, Status, JokerRun
 from ..init import initialize_db
@@ -20,14 +20,15 @@ class TestDB(object):
         with open(get_pkg_data_filename('travis_db.yml')) as f:
             config = yaml.load(f)
 
-        self.db_path = path.join(TWOFACE_CACHE_PATH, config['database_file'])
+        # this is deleted later
+        self.db_path = path.join(HQ_CACHE_PATH, config['database_file'])
 
         # initialize the database
-        Session, self.engine = db_connect(self.db_path)
+        Session, self.engine = db_connect(self.db_path, ensure_db_exists=True)
 
         initialize_db(allVisit_file=get_pkg_data_filename('test-allVisit.fits'),
                       allStar_file=get_pkg_data_filename('test-allStar.fits'),
-                      database_file=self.db_path,
+                      database_path=self.db_path,
                       drop_all=True)
 
         self.session = Session()

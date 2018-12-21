@@ -91,8 +91,9 @@ generate_version_py(PACKAGENAME, VERSION, RELEASE,
                     get_debug_option(PACKAGENAME))
 
 # Treat everything in scripts except README* as a script to be installed
-scripts = [fname for fname in glob.glob(os.path.join('scripts', '*'))
-           if not os.path.basename(fname).startswith('README')]
+# scripts = [fname for fname in glob.glob(os.path.join('scripts', '*'))
+#            if not os.path.basename(fname).startswith('README')]
+scripts = []
 
 
 # Get configuration information from all of the various subpackages.

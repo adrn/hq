@@ -10,10 +10,9 @@ from sqlalchemy import func
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 
 # Project
-from twoface.log import log as logger
-from twoface.db import (JokerRun, AllStar, AllVisit, StarResult,
-                        AllVisitToAllStar)
-from twoface.config import TWOFACE_CACHE_PATH
+from ..config import HQ_CACHE_PATH
+from ..log import log as logger
+from .model import JokerRun, AllStar, AllVisit, StarResult, AllVisitToAllStar
 
 __all__ = ['get_run']
 
@@ -63,7 +62,7 @@ def get_run(config, session, overwrite=False):
     run.requested_samples_per_star = int(
         config['hyperparams']['requested_samples_per_star'])
     run.max_prior_samples = int(config['prior']['max_samples'])
-    run.prior_samples_file = join(TWOFACE_CACHE_PATH,
+    run.prior_samples_file = join(HQ_CACHE_PATH,
                                   config['prior']['samples_file'])
 
     if 'jitter' in config['hyperparams']:

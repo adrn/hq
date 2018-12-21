@@ -13,7 +13,6 @@ from thejoker.data import RVData
 from thejoker.sampler import JokerParams
 
 # Project
-from ..mass import get_martig_vec
 from .connect import Base
 from .quantity_type import QuantityTypeClassFactory
 from . import numpy_adapt # just need to execute code
@@ -353,49 +352,6 @@ class AllStar(Base):
                     vals[j, i] = getattr(self, name)
         return vals
 
-    @property
-    def martig_vec(self):
-        """
-        Need to get a 1D array with:
-            1, [M/H], [C/M], [N/M], [(C+N)/M], Teff/4000, logg
-
-        FPARAM contains:
-            Teff, logg, <vmicro>, [M/H], [C/M], [N/M]
-        """
-        Teff, logg, _, M_H, C_M, N_M, *_ = self.fparam
-        return get_martig_vec(Teff, logg, M_H, C_M, N_M)
-
-    @property
-    def martig_mass(self):
-        """Estimate the stellar mass of the star using the fit parameters from
-        Martig et al. and the stellar parameters.
-
-        According to Martig et al., the uncertainty is ~0.25 Msun.
-        """
-        from ..mass import M
-        x = self.martig_vec
-        return M.dot(x).dot(x)
-
-    @hybrid_property
-    def martig_filter(self):
-        return ((self.fparam3 > -0.8) &
-                (self.fparam0 > 4000) & (self.fparam0 < 5000) &
-                (self.fparam1 > 1.8) & (self.fparam1 < 3.3) &
-                (self.fparam4 > -0.25) & (self.fparam4 < 0.15) &
-                (self.fparam5 > -0.1) & (self.fparam5 < 0.45) &
-                (((self.fparam4+8.39) - (self.fparam5+7.78)) > -0.6) &
-                (((self.fparam4+8.39) - (self.fparam5+7.78)) < 0.2))
-
-    @martig_filter.expression
-    def martig_filter(cls):
-        return ((cls.fparam3 > -0.8) &
-                (cls.fparam0 > 4000) & (cls.fparam0 < 5000) &
-                (cls.fparam1 > 1.8) & (cls.fparam1 < 3.3) &
-                (cls.fparam4 > -0.25) & (cls.fparam4 < 0.15) &
-                (cls.fparam5 > -0.1) & (cls.fparam5 < 0.45) &
-                (((cls.fparam4+8.39) - (cls.fparam5+7.78)) > -0.6) &
-                (((cls.fparam4+8.39) - (cls.fparam5+7.78)) < 0.2))
-
     @classmethod
     def get_apogee_id(cls, session, apogee_id):
         return session.query(AllStar).filter(
@@ -511,7 +467,6 @@ class JokerRun(Base):
     name = Column('name', types.String, nullable=False)
     notes = Column('notes', types.String)
     config_file = Column('config_file', types.String, nullable=False)
-    # cache_path = Column('cache_path', types.String, nullable=False) # named after joker run name
     prior_samples_file = Column('prior_samples_file', types.String,
                                 nullable=False)
 
@@ -524,6 +479,8 @@ class JokerRun(Base):
     jitter_stddev = Column('jitter_stddev', types.Numeric, default=float('nan'))
     jitter_unit = Column('jitter_unit', types.String, default="")
 
+    poly_trend = Column('poly_trend', types.Integer)
+
     P_min = Column('P_min', PeriodType, nullable=False)
     P_max = Column('P_max', PeriodType, nullable=False)
     requested_samples_per_star = Column('requested_samples_per_star',
@@ -535,7 +492,8 @@ class JokerRun(Base):
         return ("<JokerRun(name='{0}', date='{0}')>"
                 .format(self.name, self.date.isoformat()))
 
-    def get_joker_params(self, anomaly_tol=1E-10):
+    def get_joker_params(self):
+        """Get a ``JokerParams`` instance with the parameters of the run."""
 
         if self.jitter is None or np.isnan(self.jitter):
             jitter_kwargs = dict(jitter=(float(self.jitter_mean),
@@ -546,4 +504,5 @@ class JokerRun(Base):
             jitter_kwargs = dict(jitter=self.jitter)
 
         return JokerParams(P_min=self.P_min, P_max=self.P_max,
-                           anomaly_tol=anomaly_tol, **jitter_kwargs)
+                           poly_trend=self.poly_trend,
+                           **jitter_kwargs)
