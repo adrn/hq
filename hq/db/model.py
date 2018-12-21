@@ -8,7 +8,6 @@ import numpy as np
 from sqlalchemy import Table, Column, types
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.orm import relationship, backref
-from sqlalchemy.ext.hybrid import hybrid_property
 from thejoker.data import RVData
 from thejoker.sampler import JokerParams
 
@@ -45,8 +44,6 @@ class StarResult(Base):
     status_id = Column('status_id', types.Integer,
                        ForeignKey('status.id'),
                        default=0, index=True)
-
-    high_K = Column('high_K', types.Boolean)
 
     star = relationship("AllStar")
     jokerrun = relationship("JokerRun",

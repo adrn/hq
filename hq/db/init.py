@@ -38,6 +38,7 @@ def tblrow_to_dbrow(tblrow, colnames, varchar_cols=[]):
 
     return row_data
 
+
 def initialize_db(allVisit_file, allStar_file, database_path,
                   drop_all=False, batch_size=4096, progress=True):
     """Initialize the database given FITS filenames for the APOGEE data.
