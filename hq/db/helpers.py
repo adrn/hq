@@ -55,7 +55,6 @@ def get_run(config, session, overwrite=False):
 
     # Create a JokerRun for this run
     run = JokerRun()
-    run.config_file = config['config_file']
     run.name = config['name']
     run.P_min = u.Quantity(*config['hyperparams']['P_min'].split())
     run.P_max = u.Quantity(*config['hyperparams']['P_max'].split())
@@ -84,6 +83,8 @@ def get_run(config, session, overwrite=False):
         # no jitter is specified, assume no jitter
         run.jitter = 0. * u.m/u.s
         logger.debug('No jitter.')
+
+    run.poly_trend = config['hyperparams'].get('poly_trend', 1)
 
     # Get all stars with >=3 visits
     q = session.query(AllStar).join(AllVisitToAllStar, AllVisit)\

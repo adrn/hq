@@ -287,7 +287,7 @@ class AllStar(Base):
         return ("<ApogeeStar(id='{0}', apogee_id='{1}', {2} results)>"
                 .format(self.id, self.apogee_id, len(self.results)))
 
-    def rvdata(self, clean=False):
+    def get_rvdata(self, clean=False):
         """Return a `thejoker.data.RVData` instance for the star.
 
         Parameters
@@ -451,7 +451,8 @@ class AllVisit(Base):
     pm_src = Column("pm_src", types.String)
 
     def __repr__(self):
-        return "<ApogeeVisit(APOGEE_ID='{}', MJD='{}')>".format(self.apogee_id, self.mjd)
+        return "<ApogeeVisit(APOGEE_ID='{}', MJD='{}')>".format(self.apogee_id,
+                                                                self.mjd)
 
 
 JitterType = QuantityTypeClassFactory(u.m/u.s)
@@ -463,7 +464,7 @@ class JokerRun(Base):
     date = Column('date', types.DateTime, default=datetime.datetime.utcnow)
     name = Column('name', types.String, nullable=False)
     notes = Column('notes', types.String)
-    config_file = Column('config_file', types.String, nullable=False)
+    # config_file = Column('config_file', types.String, nullable=False)
     prior_samples_file = Column('prior_samples_file', types.String,
                                 nullable=False)
 

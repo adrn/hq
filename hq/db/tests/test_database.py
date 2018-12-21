@@ -11,6 +11,7 @@ from ...config import HQ_CACHE_PATH
 from ..connect import db_connect
 from ..model import AllStar, AllVisit, StarResult, Status, JokerRun
 from ..init import initialize_db
+from ..helpers import get_run
 
 
 class TestDB(object):
@@ -18,10 +19,10 @@ class TestDB(object):
     def setup(self):
         # connect to database
         with open(get_pkg_data_filename('travis_db.yml')) as f:
-            config = yaml.load(f)
+            self.config = yaml.load(f)
 
         # this is deleted later
-        self.db_path = path.join(HQ_CACHE_PATH, config['database_file'])
+        self.db_path = path.join(HQ_CACHE_PATH, self.config['database_file'])
 
         # initialize the database
         Session, self.engine = db_connect(self.db_path, ensure_db_exists=True)
@@ -47,6 +48,20 @@ class TestDB(object):
         # get a visit and check that it has one star
         visit = s.query(AllVisit).filter(AllVisit.target_id == test_target_ID).limit(1).one()
         assert len(visit.stars) == 1
+
+    def test_jokerrun(self):
+        s = self.session
+        run = get_run(self.config, s)
+
+        run = s.query(JokerRun).limit(1).one()
+        pars = run.get_joker_params()
+        assert pars.poly_trend == 3
+
+    def test_special_methods(self):
+        s = self.session
+
+        star = s.query(AllStar).filter(AllStar.apogee_id == "2M00000068+5710233").one()
+        data = star.get_rvdata()
 
     def test_jokerrun_cascade(self):
         """
