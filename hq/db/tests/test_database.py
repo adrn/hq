@@ -4,6 +4,7 @@ from os import path, unlink
 # Third-party
 import astropy.units as u
 from astropy.utils.data import get_pkg_data_filename
+import numpy as np
 import yaml
 
 # Project
@@ -62,6 +63,7 @@ class TestDB(object):
 
         star = s.query(AllStar).filter(AllStar.apogee_id == "2M00000068+5710233").one()
         data = star.get_rvdata()
+        assert np.all(np.isfinite(data.rv))
 
     def test_jokerrun_cascade(self):
         """
