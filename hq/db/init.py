@@ -12,7 +12,7 @@ import numpy as np
 from ..log import log as logger
 from .connect import db_connect, Base
 from .model import AllStar, AllVisit, Status
-from .query_helpers import paged_query
+from .helpers import paged_query
 
 __all__ = ['initialize_db']
 
