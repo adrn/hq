@@ -2,8 +2,8 @@
 import sys
 
 # Project
-from twoface.log import log as logger
-from twoface.db.init import initialize_db
+from hq.log import log as logger
+from hq.db.init import initialize_db
 
 if __name__ == "__main__":
     from argparse import ArgumentParser
