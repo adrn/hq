@@ -1,10 +1,10 @@
 from os import path
-from twoface.db import (db_connect, AllStar, AllVisit, AllVisitToAllStar,
-                        StarResult, Status, JokerRun)
-from twoface.config import TWOFACE_CACHE_PATH
+import sys
+from hq.db import db_connect, AllStar, StarResult, Status, JokerRun
+from hq.config import HQ_CACHE_PATH
 
 def main(run_name):
-    Session, _ = db_connect(path.join(TWOFACE_CACHE_PATH, 'apogee.sqlite'))
+    Session, _ = db_connect(path.join(HQ_CACHE_PATH, 'apogee.sqlite'))
     session = Session()
 
     done_subq = session.query(AllStar.apogee_id)\
@@ -32,11 +32,15 @@ def main(run_name):
         print("{0} ({1}): {2}".format(status.message, status.id,
                                       star_query.count()))
 
+
 if __name__ == "__main__":
     from argparse import ArgumentParser
 
     # Define parser object
     parser = ArgumentParser(description="")
 
-    # HACK: TODO: add option to specify name
-    main(run_name='apogee-jitter')
+    if len(sys.argv) != 2:
+        raise ValueError("You must pass in the name of the HQ run as a command "
+                         "line argument.")
+
+    main(run_name=sys.argv[1])
