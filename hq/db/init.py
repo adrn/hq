@@ -1,5 +1,3 @@
-# TODO: allow customizing bitmasks used. Also, let dwarfs in that pass the qualtiy cuts!
-
 # Standard library
 from os.path import abspath, expanduser
 
@@ -42,6 +40,8 @@ def tblrow_to_dbrow(tblrow, colnames, varchar_cols=[]):
 def initialize_db(allVisit_file, allStar_file, database_path,
                   drop_all=False, batch_size=4096, progress=True):
     """Initialize the database given FITS filenames for the APOGEE data.
+
+    TODO: allow customizing bitmasks used.
 
     Parameters
     ----------
@@ -88,10 +88,6 @@ def initialize_db(allVisit_file, allStar_file, database_path,
     # Remove STAR_BAD, ROTATION_WARN stars:
     skip_mask = np.sum(2 ** np.array([23, 10]))
     star_mask &= ((allstar_tbl['ASPCAPFLAG'] & skip_mask) == 0)
-
-    # Remove stars with bad logg measurements, or dwarfs
-    star_mask &= (allstar_tbl['logg'] > 0) & (allstar_tbl['logg'] < 4.)
-    allstar_tbl = allstar_tbl[star_mask]
 
     # Only load visits for stars that we're loading
     allvisit_tbl = allvisit_tbl[np.isin(allvisit_tbl['APOGEE_ID'],
