@@ -1,9 +1,11 @@
 # Standard library
 import sys
+from os import path
 
 # Project
 from hq.log import log as logger
 from hq.db.init import initialize_db
+from hq.config import HQ_CACHE_PATH
 
 if __name__ == "__main__":
     from argparse import ArgumentParser
@@ -42,5 +44,5 @@ if __name__ == "__main__":
         logger.setLevel(logging.INFO)
 
     initialize_db(args.allVisit_file, args.allStar_file,
-                  database_name='apogee.sqlite')
+                  database_path=path.join(HQ_CACHE_PATH, 'apogee.sqlite'))
     sys.exit(0)
