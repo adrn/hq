@@ -3,25 +3,14 @@ import sys
 
 # Project
 from twoface.log import log as logger
-from twoface.db.init import initialize_db, load_nessrg
-
-
-def main(allVisit_file, allStar_file, nessrg_file, **_):
-    database_name = 'apogee.sqlite' # TODO: should this be enforced?
-
-    initialize_db(allVisit_file, allStar_file, database_name)
-
-    if nessrg_file is not None:
-        load_nessrg(nessrg_file, database_name, overwrite=False) # HACK
-
+from twoface.db.init import initialize_db
 
 if __name__ == "__main__":
     from argparse import ArgumentParser
     import logging
 
     # Define parser object
-    parser = ArgumentParser(description="Initialize the TwoFace project "
-                                        "database.")
+    parser = ArgumentParser(description="Initialize the project database.")
 
     vq_group = parser.add_mutually_exclusive_group()
     vq_group.add_argument('-v', '--verbose', action='count', default=0,
@@ -33,9 +22,6 @@ if __name__ == "__main__":
                         type=str, help="Path to APOGEE allStar FITS file.")
     parser.add_argument("--allvisit", dest="allVisit_file", required=True,
                         type=str, help="Path to APOGEE allVisit FITS file.")
-
-    parser.add_argument("--nessrg", dest="nessrg_file", type=str, default=None,
-                        help="Path to Ness Red Giant masses FITS file.")
 
     args = parser.parse_args()
 
@@ -55,5 +41,6 @@ if __name__ == "__main__":
     else: # default
         logger.setLevel(logging.INFO)
 
-    main(**vars(args))
+    initialize_db(args.allVisit_file, args.allStar_file,
+                  database_name='apogee.sqlite')
     sys.exit(0)
