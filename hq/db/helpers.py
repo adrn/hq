@@ -12,7 +12,7 @@ from ..config import HQ_CACHE_PATH
 from ..log import log as logger
 from .model import JokerRun, AllStar, AllVisit, StarResult, AllVisitToAllStar
 
-__all__ = ['get_run']
+__all__ = ['get_run', 'paged_query']
 
 
 def get_run(config, session, overwrite=False):
