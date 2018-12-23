@@ -153,7 +153,7 @@ def main(config_file, pool, seed, overwrite=False, _continue=False):
         logger.log(1, "Current status: {0}".format(str(result.status)))
         t0 = time.time()
 
-        data = star.apogeervdata()
+        data = star.get_rvdata()
         logger.log(1, "\t visits loaded ({:.2f} seconds)"
                    .format(time.time()-t0))
         try:

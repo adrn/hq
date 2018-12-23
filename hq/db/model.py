@@ -316,8 +316,10 @@ class AllStar(Base):
         t = Time(jd, format='jd', scale='utc') # TODO: is it Barycentric JD?
         rv = rv * u.km/u.s
         rv_err = rv_rand_err * u.km/u.s
+        t0 = Time(0.5 * (np.max(jd) + np.min(jd)),
+                  format='jd', scale='utc') # TODO: is it Barycentric JD?
 
-        data = RVData(t=t, rv=rv, stddev=rv_err)
+        data = RVData(t=t, rv=rv, stddev=rv_err, t0=t0)
 
         if clean:
             bad_mask = (np.isclose(np.abs(data.rv.value), 9999.) |
@@ -501,6 +503,14 @@ class JokerRun(Base):
         else:
             jitter_kwargs = dict(jitter=self.jitter)
 
+        # HACK: make these customizable!
+        linear_par_sigmas = [100, # K: km/s
+                             500, # v0: km/s
+                             1. / 1000, # v1: km/s/d
+                             1. / 1000**2] # v1: km/s/d^2
+        Vinv = np.diag(1 / np.array(linear_par_sigmas[:self.poly_trend+1])**2)
+
         return JokerParams(P_min=self.P_min, P_max=self.P_max,
                            poly_trend=self.poly_trend,
+                           linear_par_Vinv=Vinv,
                            **jitter_kwargs)
