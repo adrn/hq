@@ -214,8 +214,10 @@ def main(config_file, pool, seed, overwrite=False, _continue=False):
                 # number requested in the config file
                 result.status_id = 1 # needs more samples
 
-        logger.debug("...done with star {0}: {1} visits ({2:.2f} seconds)"
-                     .format(star.apogee_id, len(data.rv), time.time()-t0))
+        logger.debug("...done with star {0}: {1} visits, {2} samples returned "
+                     " ({3:.2f} seconds)"
+                     .format(star.apogee_id, len(data.rv), len(samples),
+                             time.time()-t0))
 
         if count % batch_size == 0 and count > 0:
             session.commit()
