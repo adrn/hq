@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH -J load
-#SBATCH -o load.o%j
-#SBATCH -e load.e%j
+#SBATCH -J run
+#SBATCH -o run.o%j
+#SBATCH -e run.e%j
 #SBATCH -N 8
 #SBATCH -t 24:00:00
 #SBATCH -p cca
