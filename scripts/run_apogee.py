@@ -172,7 +172,9 @@ def main(config_file, pool, seed, overwrite=False, _continue=False):
                            .format(star.apogee_id, str(e)))
             continue
 
-        logger.debug("\t done sampling ({:.2f} seconds)".format(time.time()-t0))
+        logger.debug("\t done sampling - {0} raw samples returned "
+                     "({1:.2f} seconds)".format(len(samples),
+                                                time.time()-t0))
 
         # For now, it's sufficient to write the run results to an HDF5 file
         n = run.requested_samples_per_star
