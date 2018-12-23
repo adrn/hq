@@ -143,6 +143,11 @@ def main(config_file, pool, seed, overwrite=False, _continue=False):
                          .format(star.apogee_id))
             continue
 
+        # HACK:
+        if not star.apogee_id:
+            logger.debug('Star {0} has no APOGEE ID!'.format(star.id))
+            continue
+
         # Retrieve existing StarResult from database. We limit(1) because the
         # APOGEE_ID isn't unique, but we attach all visits for a given star to
         # all rows, so grabbing one of them is fine.
@@ -154,8 +159,8 @@ def main(config_file, pool, seed, overwrite=False, _continue=False):
         t0 = time.time()
 
         data = star.get_rvdata()
-        logger.log(1, "\t visits loaded ({:.2f} seconds)"
-                   .format(time.time()-t0))
+        logger.log(1, "\t {0} visits loaded ({1:.2f} seconds)"
+                   .format(len(data.rv), time.time()-t0))
         try:
             samples, ln_prior = joker.iterative_rejection_sample(
                 data=data, n_requested_samples=run.requested_samples_per_star,
