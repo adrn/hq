@@ -45,12 +45,12 @@ from thejoker.sampler import TheJoker
 import yaml
 
 # Project
-from twoface import unimodal_P
-from twoface.log import log as logger
-from twoface.db import db_connect, get_run
-from twoface.db import JokerRun, AllStar, StarResult, Status
-from twoface.config import TWOFACE_CACHE_PATH
-from twoface.sample_prior import make_prior_cache
+from hq.log import log as logger
+from hq.db import db_connect, get_run
+from hq.db import JokerRun, AllStar, StarResult, Status
+from hq.config import HQ_CACHE_PATH
+from hq.sample_prior import make_prior_cache
+from hq.samples_analysis import unimodal_P
 
 
 def main(config_file, pool, seed, overwrite=False, _continue=False):
@@ -68,7 +68,7 @@ def main(config_file, pool, seed, overwrite=False, _continue=False):
     else:
         database_file = config['database_file']
 
-    db_path = join(TWOFACE_CACHE_PATH, database_file)
+    db_path = join(HQ_CACHE_PATH, database_file)
     if not os.path.exists(db_path):
         raise IOError("sqlite database not found at '{0}'\n Did you run "
                       "scripts/initdb.py yet for that database?"
@@ -117,7 +117,7 @@ def main(config_file, pool, seed, overwrite=False, _continue=False):
                                             .filter(~AllStar.apogee_id.in_(done_subq))
 
     # Create a file to cache the resulting posterior samples
-    results_filename = join(TWOFACE_CACHE_PATH, "{0}.hdf5".format(run.name))
+    results_filename = join(HQ_CACHE_PATH, "{0}.hdf5".format(run.name))
     n_stars = star_query.count()
     logger.info("{0} stars left to process for run '{1}'"
                 .format(n_stars, run.name))
