@@ -1,6 +1,6 @@
 from os import path
 import sys
-from hq.db import (db_connect, AllStar, AllVisitToStar, AllVisit,
+from hq.db import (db_connect, AllStar, AllVisitToAllStar, AllVisit,
                    StarResult, Status, JokerRun)
 from hq.config import HQ_CACHE_PATH
 
@@ -11,7 +11,7 @@ def main(run_name):
     if run_name is None:
         n_stars = session.query(AllStar.apogee_id).distinct().count()
         n_stars_w_visits = session.query(AllStar.apogee_id)\
-                                  .join(AllVisitToStar, AllVisit).count()
+                                  .join(AllVisitToAllStar, AllVisit).count()
         print("{0} stars loaded".format(n_stars))
         print("{0} stars with visits".format(n_stars_w_visits))
 
