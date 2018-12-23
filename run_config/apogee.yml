@@ -7,6 +7,7 @@ hyperparams:
   jitter_prior_mean: 9.5 # See infer-jitter notebook
   jitter_prior_stddev: 1.64
   jitter_prior_unit: m/s
+  poly_trend: 3
 prior:
   max_samples: 536870912 # 1/8 of total
   num_cache: 536870912
