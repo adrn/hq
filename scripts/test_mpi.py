@@ -9,8 +9,9 @@ from thejoker.sampler import TheJoker
 
 # Project
 from hq.log import log as logger
-from hq.db import db_connect, AllStar, JokerRun
+from hq.db import db_connect, AllStar, JokerRun, AllVisitToAllStar, AllVisit
 from hq.config import HQ_CACHE_PATH
+from hq.sample_prior import make_prior_cache
 
 
 def main(pool):
@@ -20,21 +21,16 @@ def main(pool):
                                  ensure_db_exists=False)
     session = Session()
 
-    ids = ['2M00000002+7417074',
-           '2M00000032+5737103',
-           '2M00000032+5737103',
-           '2M00000068+5710233',
-           '2M00000222+5625359',
-           '2M00000233+1452324',
-           '2M00000446+5854329',
-           '2M00000535+1504343',
-           '2M00000546+6152107',
-           '2M00000662+7528598']
-
-    stars = session.query(AllStar).filter(AllStar.apogee_id.in_(ids)).all()
+    stars = session.query(AllStar).join(AllVisitToAllStar, AllVisit)\
+                   .filter(AllStar.apogee_id != '').limit(10).all()
     run = session.query(JokerRun).limit(1).one()
     params = run.get_joker_params()
     joker = TheJoker(params, pool=pool)
+
+    prior_filename = path.join(HQ_CACHE_PATH, 'test_prior_samples.hdf5')
+    if not path.exists(prior_filename):
+        make_prior_cache(prior_filename, joker, nsamples=2**24,
+                         batch_size=2**20)
 
     time0 = time.time()
     for star in stars:
