@@ -43,7 +43,7 @@ def main(pool):
         try:
             samples, ln_prior = joker.iterative_rejection_sample(
                 data=data, n_requested_samples=run.requested_samples_per_star,
-                prior_cache_file=run.prior_samples_file,
+                prior_cache_file=prior_filename,
                 n_prior_samples=run.max_prior_samples, return_logprobs=True)
 
         except Exception as e:
