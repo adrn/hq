@@ -90,7 +90,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     for l in [joker_logger, logger]:
-        l.setLevel(logging.DEBUG)
+        l.setLevel(1)
 
     pool_kwargs = dict(mpi=args.mpi, processes=args.n_procs)
     pool = choose_pool(**pool_kwargs)
