@@ -85,8 +85,14 @@ def main(config_file, pool, seed, overwrite=False, _continue=False):
 
     # Create TheJoker sampler instance with the specified random seed and pool
     rnd = np.random.RandomState(seed=seed)
+    if not pool.size:
+        n_batches = 128 # MAGIC NUMBER
+    else:
+        n_batches = 128 * pool.size
+
     logger.debug("Creating TheJoker instance with {0}, {1}".format(rnd, pool))
-    joker = TheJoker(params, random_state=rnd, pool=pool)
+    joker = TheJoker(params, random_state=rnd, pool=pool,
+                     n_batches=n_batches)
 
     # Create a cache of prior samples (if it doesn't exist) and store the
     # filename in the database.
