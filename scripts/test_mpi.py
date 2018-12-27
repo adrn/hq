@@ -3,13 +3,14 @@ from os import path
 import time
 
 # Third-party
+import astropy.units as u
 from schwimmbad import choose_pool
 from thejoker.log import log as joker_logger
-from thejoker.sampler import TheJoker
+from thejoker.sampler import TheJoker, JokerParams
 
 # Project
 from hq.log import log as logger
-from hq.db import db_connect, AllStar, JokerRun, AllVisitToAllStar, AllVisit
+from hq.db import db_connect, AllStar, AllVisitToAllStar, AllVisit
 from hq.config import HQ_CACHE_PATH
 from hq.sample_prior import make_prior_cache
 
@@ -23,8 +24,8 @@ def main(pool):
 
     stars = session.query(AllStar).join(AllVisitToAllStar, AllVisit)\
                    .filter(AllStar.apogee_id != '').limit(10).all()
-    run = session.query(JokerRun).limit(1).one()
-    params = run.get_joker_params()
+    params = JokerParams(P_min=1*u.day, P_max=32768*u.day,
+                         poly_trend=3, jitter=150*u.m/u.s)
     joker = TheJoker(params, pool=pool)
 
     prior_filename = path.join(HQ_CACHE_PATH, 'test_prior_samples.hdf5')
@@ -42,9 +43,9 @@ def main(pool):
                    .format(len(data.rv), time.time()-_t0))
         try:
             samples, ln_prior = joker.iterative_rejection_sample(
-                data=data, n_requested_samples=run.requested_samples_per_star,
+                data=data, n_requested_samples=128,
                 prior_cache_file=prior_filename,
-                n_prior_samples=run.max_prior_samples, return_logprobs=True)
+                n_prior_samples=16_000_000, return_logprobs=True)
 
         except Exception as e:
             logger.warning("\t Failed sampling for star {0} \n Error: {1}"
