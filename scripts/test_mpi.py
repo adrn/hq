@@ -43,7 +43,7 @@ def main(pool):
 
         data = star.get_rvdata()
         logger.log(1, "\t {0} visits loaded ({1:.2f} seconds)"
-                   .format(len(data.rv), time.time()-t0))
+                   .format(len(data.rv), time.time()-_t0))
         try:
             samples, ln_prior = joker.iterative_rejection_sample(
                 data=data, n_requested_samples=run.requested_samples_per_star,
