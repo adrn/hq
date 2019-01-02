@@ -93,6 +93,7 @@ def main(config_file, pool, seed, overwrite=False, _continue=False):
     logger.debug("Creating TheJoker instance with {0}, {1}".format(rnd, pool))
     joker = TheJoker(params, random_state=rnd, pool=pool,
                      n_batches=n_batches)
+    logger.debug("Processing pool has size = {0}".format(pool.size))
 
     # Create a cache of prior samples (if it doesn't exist) and store the
     # filename in the database.
