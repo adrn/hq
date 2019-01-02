@@ -23,7 +23,7 @@ def main(pool):
     session = Session()
 
     stars = session.query(AllStar).join(AllVisitToAllStar, AllVisit)\
-                   .filter(AllStar.apogee_id != '').limit(10).all()
+                   .filter(AllStar.apogee_id == '2M17162131-2451161').all()
     params = JokerParams(P_min=1*u.day, P_max=32768*u.day,
                          poly_trend=3, jitter=150*u.m/u.s)
     joker = TheJoker(params, pool=pool)
