@@ -284,8 +284,8 @@ class AllStar(Base):
             exec(_cov_str.format(i=_i, j=_j))
 
     def __repr__(self):
-        return ("<ApogeeStar(id='{0}', apogee_id='{1}', {2} results)>"
-                .format(self.id, self.apogee_id, len(self.results)))
+        return ("<ApogeeStar(id='{0}', apogee_id='{1}')>"
+                .format(self.id, self.apogee_id))
 
     def get_rvdata(self, clean=False):
         """Return a `thejoker.data.RVData` instance for the star.
