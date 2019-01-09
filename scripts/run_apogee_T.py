@@ -152,7 +152,7 @@ def main(config_file, pool, seed, overwrite=False):
 
     # Query to get all stars associated with this run that need processing:
     # they should have a status id = 0 (needs processing)
-    star_query = session.query(AllStar.apogee_id)\
+    star_query = session.query(AllStar)\
                         .join(StarResult, JokerRun, Status)\
                         .filter(JokerRun.name == run.name)\
                         .filter(Status.id == 0)\
@@ -182,6 +182,7 @@ def main(config_file, pool, seed, overwrite=False):
     for i, sub_q in enumerate(paged_query(star_query, page_size=batch_size)):
         stars = sub_q.all()
         tasks = [(run, joker, s, results_filename) for s in stars]
+        logger.debug("Running batch {0}, {1} stars".format(i, len(tasks)))
         for r in pool.map(worker, tasks, callback=callback):
             pass
 
