@@ -72,7 +72,8 @@ class AllStar(Base):
 
     id = Column(types.Integer, primary_key=True)
     visits = relationship("AllVisit", secondary=AllVisitToAllStar,
-                          backref=backref("stars"))
+                          backref=backref("stars"),
+                          lazy="joined")
 
     joker_runs = relationship("JokerRun", secondary="starresult",
                               back_populates="stars")
