@@ -9,6 +9,6 @@ hyperparams:
   jitter_prior_unit: m/s
   poly_trend: 3
 prior:
-  max_samples: 536870912 # 1/8 of total
+  max_samples: 67108864 # 1/8 of total
   num_cache: 536870912
   samples_file: P1-32768_prior_samples.hdf5
