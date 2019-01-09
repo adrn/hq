@@ -91,8 +91,7 @@ def main(config_file, pool, seed, overwrite=False, _continue=False):
         n_batches = 128 * pool.size
 
     logger.debug("Creating TheJoker instance with {0}, {1}".format(rnd, pool))
-    joker = TheJoker(params, random_state=rnd, pool=pool,
-                     n_batches=n_batches)
+    joker = TheJoker(params, random_state=rnd, pool=pool)
     logger.debug("Processing pool has size = {0}".format(pool.size))
 
     # Create a cache of prior samples (if it doesn't exist) and store the
