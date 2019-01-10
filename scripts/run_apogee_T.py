@@ -155,7 +155,7 @@ def main(config_file, pool, seed, overwrite=False):
                         .filter(AllStar.apogee_id != "")\
                         .filter(Status.id == 0)\
                         .filter(~AllStar.apogee_id.in_(done_subq))\
-                        .order_by(AllStar.apogee_id)
+                        .order_by(AllStar.apogee_id).distinct()
 
     # Create a file to cache the resulting posterior samples
     results_filename = join(HQ_CACHE_PATH, "{0}.hdf5".format(run.name))
@@ -176,7 +176,7 @@ def main(config_file, pool, seed, overwrite=False):
     # this for efficiency, but the argument for this is somewhat made up...
 
     # batch_size = 1024
-    batch_size = 32
+    batch_size = 10
     for i, sub_q in enumerate(paged_query(star_query, page_size=batch_size)):
         stars = sub_q.all()
         tasks = [(run, joker, s, results_filename) for s in stars]
