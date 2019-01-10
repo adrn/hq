@@ -98,7 +98,8 @@ def main(config_file, pool, seed, overwrite=False, _continue=False):
     # Get done APOGEE ID's
     done_subq = session.query(AllStar.apogee_id)\
                        .join(StarResult, JokerRun, Status)\
-                       .filter(Status.id > 0).distinct()
+                       .filter(Status.id > 100).distinct()
+                       # .filter(Status.id > 0).distinct()
 
     # Query to get all stars associated with this run that need processing:
     # they should have a status id = 0 (needs processing)
