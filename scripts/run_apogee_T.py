@@ -50,10 +50,6 @@ from hq.samples_analysis import unimodal_P
 def worker(task):
     run, joker, star, results_file = task
 
-    if not star.apogee_id:
-        logger.debug('Star {0} has no APOGEE ID!'.format(star.id))
-        return None
-
     logger.log(1, "Starting star '{0}'".format(star.apogee_id))
     t0 = time.time()
 
@@ -73,8 +69,9 @@ def worker(task):
                        .format(star.apogee_id, str(e)))
         return None
 
-    logger.debug("\t done sampling - {0} raw samples returned "
-                 "({1:.2f} seconds)".format(len(samples), time.time()-t0))
+    logger.debug("\t done sampling {0}: {1} visits, {2} samples returned "
+                 "({3:.2f} seconds)".format(star.apogee_id, len(data.rv),
+                                            len(samples), time.time()-t0))
 
     return star, samples, ln_prior_probs, results_file
 
@@ -98,7 +95,7 @@ def callback(result):
             del g['ln_prior_probs']
         g.create_dataset('ln_prior_probs', data=ln_prior_probs)
 
-    logger.debug("\t saved samples")
+    logger.log(1, "\t saved samples")
 
 
 def main(config_file, pool, seed, overwrite=False):
@@ -155,6 +152,7 @@ def main(config_file, pool, seed, overwrite=False):
     star_query = session.query(AllStar)\
                         .join(StarResult, JokerRun, Status)\
                         .filter(JokerRun.name == run.name)\
+                        .filter(AllStar.apogee_id != "")\
                         .filter(Status.id == 0)\
                         .filter(~AllStar.apogee_id.in_(done_subq))\
                         .order_by(AllStar.apogee_id)
@@ -178,7 +176,7 @@ def main(config_file, pool, seed, overwrite=False):
     # this for efficiency, but the argument for this is somewhat made up...
 
     # batch_size = 1024
-    batch_size = 128
+    batch_size = 32
     for i, sub_q in enumerate(paged_query(star_query, page_size=batch_size)):
         stars = sub_q.all()
         tasks = [(run, joker, s, results_filename) for s in stars]
