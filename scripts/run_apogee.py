@@ -106,16 +106,16 @@ def main(config_file, pool, seed, overwrite=False, _continue=False):
                         .join(StarResult, JokerRun, Status)\
                         .filter(AllStar.apogee_id != '')\
                         .filter(JokerRun.name == run.name)\
-                        .filter(Status.id == 0)\
                         .filter(~AllStar.apogee_id.in_(done_subq))\
                         .order_by(AllStar.apogee_id).distinct()
+                        # .filter(Status.id == 0)\
 
     # Base query to get a StarResult for a given Star so we can update the
     # status, etc.
     result_query = session.query(StarResult).join(AllStar, JokerRun)\
                                             .filter(JokerRun.name == run.name)\
-                                            .filter(Status.id == 0)\
                                             .filter(~AllStar.apogee_id.in_(done_subq))
+                                            # .filter(Status.id == 0)\
 
     # Create a file to cache the resulting posterior samples
     results_filename = join(HQ_CACHE_PATH, "{0}.hdf5".format(run.name))
