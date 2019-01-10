@@ -21,14 +21,6 @@ processing on computers from laptop (via multiprocessing) to compute cluster
 flags ``--mpi`` and ``--ncores``. By default (with no flags), all calculations
 are done in serial.
 
-TODO
-====
-
-- We might want a way to pass in a velocity trend specification, i.e. whether to
-  sample over extra linear parameters to account for a long-term velocity trend.
-  Right now we assume no long-term trend.
--
-
 """
 
 # Standard library
@@ -110,10 +102,13 @@ def main(config_file, pool, seed, overwrite=False, _continue=False):
 
     # Query to get all stars associated with this run that need processing:
     # they should have a status id = 0 (needs processing)
-    star_query = session.query(AllStar).join(StarResult, JokerRun, Status)\
-                                       .filter(JokerRun.name == run.name)\
-                                       .filter(Status.id == 0)\
-                                       .filter(~AllStar.apogee_id.in_(done_subq))
+    star_query = session.query(AllStar)\
+                        .join(StarResult, JokerRun, Status)\
+                        .filter(AllStar.apogee_id != '')\
+                        .filter(JokerRun.name == run.name)\
+                        .filter(Status.id == 0)\
+                        .filter(~AllStar.apogee_id.in_(done_subq))\
+                        .order_by(AllStar.apogee_id).distinct()
 
     # Base query to get a StarResult for a given Star so we can update the
     # status, etc.
@@ -147,11 +142,6 @@ def main(config_file, pool, seed, overwrite=False, _continue=False):
         if result_query.filter(AllStar.apogee_id == star.apogee_id).count() < 1:
             logger.debug('Star {0} has no result object!'
                          .format(star.apogee_id))
-            continue
-
-        # HACK:
-        if not star.apogee_id:
-            logger.debug('Star {0} has no APOGEE ID!'.format(star.id))
             continue
 
         # Retrieve existing StarResult from database. We limit(1) because the
