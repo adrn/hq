@@ -107,15 +107,15 @@ def main(config_file, pool, seed, overwrite=False):
                         .filter(AllStar.apogee_id != '')\
                         .filter(JokerRun.name == run.name)\
                         .filter(~AllStar.apogee_id.in_(done_subq))\
+                        .filter(Status.id == 0)\
                         .order_by(AllStar.apogee_id).distinct()
-                        # .filter(Status.id == 0)\
 
     # Base query to get a StarResult for a given Star so we can update the
     # status, etc.
     result_query = session.query(StarResult).join(AllStar, JokerRun)\
                                             .filter(JokerRun.name == run.name)\
+                                            .filter(Status.id == 0)\
                                             .filter(~AllStar.apogee_id.in_(done_subq))
-                                            # .filter(Status.id == 0)\
 
     # Create a file to cache the resulting posterior samples
     results_filename = join(HQ_CACHE_PATH, "{0}.hdf5".format(run.name))
@@ -184,7 +184,6 @@ def main(config_file, pool, seed, overwrite=False):
         if star.apogee_id in results_f:
             del results_f[star.apogee_id]
 
-        # HACK: this will overwrite the past samples!
         g = results_f.create_group(star.apogee_id)
         samples.to_hdf5(g)
 
