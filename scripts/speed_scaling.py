@@ -6,21 +6,19 @@ import time
 import astropy.units as u
 import numpy as np
 from schwimmbad import choose_pool
-from sqlalchemy import func
 from thejoker.log import log as joker_logger
 from thejoker.sampler import TheJoker, JokerParams
 
 # Project
-from twoface.log import log as logger
-from twoface.db import db_connect
-from twoface.db import AllStar, AllVisit
-from twoface.config import TWOFACE_CACHE_PATH
+from hq.log import log as logger
+from hq.db import db_connect, AllStar
+from hq.config import HQ_CACHE_PATH
 
 
 def main(pool):
     seed = 42
 
-    db_path = path.join(TWOFACE_CACHE_PATH, 'apogee.sqlite')
+    db_path = path.join(HQ_CACHE_PATH, 'apogee.sqlite')
     logger.debug("Connecting to sqlite database at '{0}'".format(db_path))
     Session, engine = db_connect(database_path=db_path,
                                  ensure_db_exists=False)
