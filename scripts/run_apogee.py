@@ -45,7 +45,7 @@ from hq.sample_prior import make_prior_cache
 from hq.samples_analysis import unimodal_P
 
 
-def main(config_file, pool, seed, overwrite=False, _continue=False):
+def main(config_file, pool, seed, overwrite=False):
     config_file = abspath(expanduser(config_file))
 
     # parse config file
@@ -98,8 +98,7 @@ def main(config_file, pool, seed, overwrite=False, _continue=False):
     # Get done APOGEE ID's
     done_subq = session.query(AllStar.apogee_id)\
                        .join(StarResult, JokerRun, Status)\
-                       .filter(Status.id > 100).distinct()
-                       # .filter(Status.id > 0).distinct()
+                       .filter(Status.id > 0).distinct()
 
     # Query to get all stars associated with this run that need processing:
     # they should have a status id = 0 (needs processing)
@@ -129,6 +128,8 @@ def main(config_file, pool, seed, overwrite=False, _continue=False):
     if not os.path.exists(results_filename):
         with h5py.File(results_filename, 'w') as f:
             pass
+
+    results_f = h5py.File(results_filename, 'r+')
 
     # --------------------------------------------------------------------------
     # Here is where we do the actual processing of the data for each star. We
@@ -180,17 +181,17 @@ def main(config_file, pool, seed, overwrite=False, _continue=False):
         n_actual_samples = len(all_ln_probs)
 
         # Write the samples that pass to the results file
-        with h5py.File(results_filename, 'r+') as f:
-            if star.apogee_id in f:
-                del f[star.apogee_id]
+        if star.apogee_id in results_f:
+            del results_f[star.apogee_id]
 
-            # HACK: this will overwrite the past samples!
-            g = f.create_group(star.apogee_id)
-            samples.to_hdf5(g)
+        # HACK: this will overwrite the past samples!
+        g = results_f.create_group(star.apogee_id)
+        samples.to_hdf5(g)
 
-            if 'ln_prior_probs' in g:
-                del g['ln_prior_probs']
-            g.create_dataset('ln_prior_probs', data=all_ln_probs)
+        if 'ln_prior_probs' in g:
+            del g['ln_prior_probs']
+        g.create_dataset('ln_prior_probs', data=all_ln_probs)
+        results_f.flush()
 
         logger.debug("\t saved samples ({:.2f} seconds)".format(time.time()-t0))
 
@@ -242,14 +243,10 @@ if __name__ == "__main__":
     vq_group.add_argument('-q', '--quiet', action='count', default=0,
                           dest='quietness')
 
-    oc_group = parser.add_mutually_exclusive_group()
-    oc_group.add_argument("--overwrite", dest="overwrite", default=False,
-                          action="store_true",
-                          help="Overwrite any existing results for this "
-                               "JokerRun.")
-    oc_group.add_argument("--continue", dest="_continue", default=False,
-                          action="store_true",
-                          help="Continue the the JokerRun.")
+    parser.add_argument("--overwrite", dest="overwrite", default=False,
+                        action="store_true",
+                        help="Overwrite any existing results for this "
+                             "JokerRun.")
 
     parser.add_argument("-s", "--seed", dest="seed", default=None, type=int,
                         help="Random number seed")
@@ -292,4 +289,4 @@ if __name__ == "__main__":
     pool = choose_pool(**pool_kwargs)
 
     main(config_file=args.config_file, pool=pool, seed=args.seed,
-         overwrite=args.overwrite, _continue=args._continue)
+         overwrite=args.overwrite)
