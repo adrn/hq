@@ -38,7 +38,8 @@ def tblrow_to_dbrow(tblrow, colnames, varchar_cols=[]):
 
 
 def initialize_db(allVisit_file, allStar_file, database_path,
-                  drop_all=False, batch_size=4096, progress=True):
+                  drop_all=False, batch_size=4096, min_nvisits=3,
+                  progress=True):
     """Initialize the database given FITS filenames for the APOGEE data.
 
     TODO: allow customizing bitmasks used.
@@ -70,12 +71,8 @@ def initialize_db(allVisit_file, allStar_file, database_path,
     allstar_tbl = fits.getdata(norm(allStar_file))
 
     # Remove bad velocities and flagged bad visits:
-    # PERSIST_HIGH, PERSIST_JUMP_POS, PERSIST_JUMP_NEG
-    # VERY_BRIGHT_NEIGHBOR, LOW_SNR
-    # SUSPECT_RV_COMBINATION, SUSPECT_BROAD_LINES
-    skip_mask = np.sum(2 ** np.array([9, 12, 13,
-                                      3, 4,
-                                      16, 17]))
+    # LOW_SNR, PERSIST_HIGH, PERSIST_JUMP_POS, PERSIST_JUMP_NEG
+    skip_mask = np.sum(2 ** np.array([4, 9, 12, 13]))
     allvisit_tbl = allvisit_tbl[np.isfinite(allvisit_tbl['VHELIO']) &
                                 np.isfinite(allvisit_tbl['VRELERR']) &
                                 (allvisit_tbl['VRELERR'] < 100.) & # MAGIC
@@ -83,11 +80,18 @@ def initialize_db(allVisit_file, allStar_file, database_path,
 
     v_apogee_ids, counts = np.unique(allvisit_tbl['APOGEE_ID'],
                                      return_counts=True)
-    star_mask = np.isin(allstar_tbl['APOGEE_ID'], v_apogee_ids[counts >= 3])
+    star_mask = np.isin(allstar_tbl['APOGEE_ID'],
+                        v_apogee_ids[counts >= min_nvisits])
 
-    # Remove STAR_BAD, ROTATION_WARN stars:
-    skip_mask = np.sum(2 ** np.array([23, 10]))
+    # Remove stars flagged with:
+    # TEFF_WARN, ROTATION_WARN, CHI2_WARN, STAR_BAD
+    skip_mask = np.sum(2 ** np.array([0, 8, 10, 23]))
     star_mask &= ((allstar_tbl['ASPCAPFLAG'] & skip_mask) == 0)
+
+    # Remove stars flagged with:
+    # VERY_BRIGHT_NEIGHBOR, SUSPECT_RV_COMBINATION, SUSPECT_BROAD_LINES
+    skip_mask = np.sum(2 ** np.array([3, 16, 17]))
+    star_mask &= ((allstar_tbl['STARFLAG'] & skip_mask) == 0)
 
     # Only load visits for stars that we're loading
     allvisit_tbl = allvisit_tbl[np.isin(allvisit_tbl['APOGEE_ID'],
@@ -107,7 +111,8 @@ def initialize_db(allVisit_file, allStar_file, database_path,
 
     session = Session()
 
-    logger.debug("Loading allStar, allVisit tables...")
+    logger.debug("Loading {0} rows in allStar table, {1} rows "
+                 "in allVisit table...")
 
     # Figure out what data we need to pull out of the FITS files based on what
     # columns exist in the (empty) database

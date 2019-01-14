@@ -44,5 +44,6 @@ if __name__ == "__main__":
         logger.setLevel(logging.INFO)
 
     initialize_db(args.allVisit_file, args.allStar_file,
-                  database_path=path.join(HQ_CACHE_PATH, 'apogee.sqlite'))
+                  database_path=path.join(HQ_CACHE_PATH, 'apogee.sqlite'),
+                  min_nvisits=5)
     sys.exit(0)
