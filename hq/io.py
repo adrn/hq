@@ -8,7 +8,7 @@ from thejoker.utils import quantity_from_hdf5
 __all__ = ['load_samples']
 
 
-def load_samples(group_or_filename, apogee_id=None):
+def load_samples(group_or_filename, apogee_id=None, **kwargs):
     """A wrapper around `thejoker.JokerSamples.from_hdf5` that...TODO
 
     Parameters
@@ -24,7 +24,7 @@ def load_samples(group_or_filename, apogee_id=None):
             raise ValueError("If a filename is passed, you must also specify "
                              "the APOGEE ID of the source to load.")
 
-        f = h5py.File(group_or_filename)
+        f = h5py.File(group_or_filename, 'r')
         group = f[apogee_id]
 
     else:
@@ -41,4 +41,5 @@ def load_samples(group_or_filename, apogee_id=None):
     if f is not None:
         f.close()
 
-    return JokerSamples(**samples_dict)
+    kwargs.update(samples_dict)
+    return JokerSamples(**kwargs)
