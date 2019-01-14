@@ -97,9 +97,11 @@ def initialize_db(allVisit_file, allStar_file, database_path,
     # Only load visits for stars that we're loading
     allvisit_tbl = allvisit_tbl[np.isin(allvisit_tbl['APOGEE_ID'],
                                         allstar_tbl['APOGEE_ID'])]
+    v_apogee_ids2 = np.unique(allvisit_tbl['APOGEE_ID'])
+    star_mask2 = np.isin(allstar_tbl['APOGEE_ID'], v_apogee_ids2)
 
     allvisit_tbl = Table(allvisit_tbl)
-    allstar_tbl = Table(allstar_tbl)
+    allstar_tbl = Table(allstar_tbl[star_mask2])
 
     Session, engine = db_connect(database_path, ensure_db_exists=True)
     logger.debug("Connected to database at '{}'".format(database_path))
@@ -113,7 +115,8 @@ def initialize_db(allVisit_file, allStar_file, database_path,
     session = Session()
 
     logger.debug("Loading {0} rows in allStar table, {1} rows "
-                 "in allVisit table...")
+                 "in allVisit table...".format(len(allstar_tbl),
+                                               len(allvisit_tbl)))
 
     # Figure out what data we need to pull out of the FITS files based on what
     # columns exist in the (empty) database
