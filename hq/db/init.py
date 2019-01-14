@@ -92,6 +92,7 @@ def initialize_db(allVisit_file, allStar_file, database_path,
     # VERY_BRIGHT_NEIGHBOR, SUSPECT_RV_COMBINATION, SUSPECT_BROAD_LINES
     skip_mask = np.sum(2 ** np.array([3, 16, 17]))
     star_mask &= ((allstar_tbl['STARFLAG'] & skip_mask) == 0)
+    allstar_tbl = allstar_tbl[star_mask]
 
     # Only load visits for stars that we're loading
     allvisit_tbl = allvisit_tbl[np.isin(allvisit_tbl['APOGEE_ID'],
