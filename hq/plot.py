@@ -4,6 +4,7 @@ from astropy.stats import median_absolute_deviation
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 import numpy as np
+from thejoker.plot import plot_rv_curves
 
 from .samples_analysis import unimodal_P, max_likelihood_sample
 
@@ -47,7 +48,7 @@ def plot_mcmc_diagnostic(chain):
 
 
 def plot_two_panel(data, samples, axes=None, tight=True, title=None,
-                   plot_data_orbits_kw=None, scatter_kw=None):
+                   plot_rv_curves_kw=None, scatter_kw=None):
     """Make a two-panel plot with (1) the data and orbit samples, and (2) the
     orbit samples in period-eccentricity space.
 
@@ -55,7 +56,7 @@ def plot_two_panel(data, samples, axes=None, tight=True, title=None,
     ----------
     star : `~twoface.db.AllStar`
     samples : `~thejoker.JokerSamples`
-    plot_data_orbits_kw : dict (optional)
+    plot_rv_curves_kw : dict (optional)
     scatter_kw : dict (optional)
 
     Returns
@@ -63,8 +64,8 @@ def plot_two_panel(data, samples, axes=None, tight=True, title=None,
     fig : `matplotlib.Figure`
 
     """
-    if plot_data_orbits_kw is None:
-        plot_data_orbits_kw = dict()
+    if plot_rv_curves_kw is None:
+        plot_rv_curves_kw = dict()
 
     if scatter_kw is None:
         scatter_kw = dict()
@@ -81,10 +82,8 @@ def plot_two_panel(data, samples, axes=None, tight=True, title=None,
         fig = ax1.figure
 
     # orbits
-    plot_data_orbits_kw.setdefault('xlim_choice', 'tight')
-    plot_data_orbits_kw.setdefault('highlight_P_extrema', False)
-    fig = plot_data_orbits(data, samples, ax=ax1,
-                           **plot_data_orbits_kw)
+    fig = plot_rv_curves(samples, data=data, ax=ax1,
+                         **plot_rv_curves_kw)
     if title is not None:
         ax1.set_title(title, fontsize=20)
 
