@@ -138,6 +138,11 @@ def plot_phase_fold(data, sample, ax=None, label=True,
     M0 = sample['M0']
     orbit = sample.get_orbit(0)
 
+    # HACK:
+    trend = orbit._vtrend
+    orbit._vtrend = lambda t: 0
+    data._rv = data._rv - trend(data.t)
+
     t0 = data.t0 + (P/(2*np.pi)*M0).to(u.day, u.dimensionless_angles())
     phase = data.phase(P=P, t0=t0)
 
