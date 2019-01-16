@@ -3,7 +3,7 @@ import astropy.units as u
 import numpy as np
 from thejoker.sampler.mcmc import TheJokerMCMCModel
 
-__all__ = ['unimodal_P', 'max_likelihood_sample', 'MAP_sample']
+__all__ = ['unimodal_P', 'max_likelihood_sample', 'MAP_sample', 'chisq']
 
 
 def unimodal_P(samples, data):
@@ -26,8 +26,8 @@ def unimodal_P(samples, data):
     return np.ptp(P_samples) < delta
 
 
-def max_likelihood_sample(data, samples):
-    """Return the maximum-likelihood sample.
+def chisq(data, samples):
+    """Return the chi squared of the samples.
 
     Parameters
     ----------
@@ -43,7 +43,19 @@ def max_likelihood_sample(data, samples):
         err = np.sqrt(data.stddev**2 + samples['jitter'][i]**2)
         chisqs[i] = np.sum((residual**2 / err**2).decompose())
 
-    return samples[np.argmin(chisqs)]
+    return chisqs
+
+
+def max_likelihood_sample(data, samples):
+    """Return the maximum-likelihood sample.
+
+    Parameters
+    ----------
+    data : `~thejoker.RVData`
+    samples : `~thejoker.JokerSamples`
+
+    """
+    return samples[np.argmin(chisq(data, samples))]
 
 
 def MAP_sample(data, samples, joker_params, return_index=False):
