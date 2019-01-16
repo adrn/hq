@@ -11,7 +11,9 @@ def main(run_name):
     if run_name is None:
         n_stars = session.query(AllStar.apogee_id).distinct().count()
         n_stars_w_visits = session.query(AllStar.apogee_id)\
-                                  .join(AllVisitToAllStar, AllVisit).count()
+                                  .join(AllVisitToAllStar, AllVisit)\
+                                  .order_by(AllStar.apogee_id)\
+                                  .distinct().count()
         print("{0} stars loaded".format(n_stars))
         print("{0} stars with visits".format(n_stars_w_visits))
 
