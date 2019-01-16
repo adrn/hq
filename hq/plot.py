@@ -148,13 +148,13 @@ def plot_phase_fold(data, sample, ax=None, label=True,
 
     # plot the phase-folded data and orbit
     rv_unit = u.km/u.s
-    ax.errorbar(phase, rv,
+    ax.errorbar(phase, rv.to(rv_unit).value,
                 data.stddev.to(rv_unit).value,
                 linestyle='none', marker='o', color='k', markersize=5,
                 zorder=10)
 
     if jitter_errorbar:
-        ax.errorbar(phase, rv,
+        ax.errorbar(phase, rv.to(rv_unit).value,
                     np.sqrt(data.stddev**2 +
                             sample['jitter']**2).to(rv_unit).value,
                     linestyle='none', marker='', elinewidth=0., color='#aaaaaa',
