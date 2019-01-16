@@ -108,7 +108,7 @@ def main(config_file, pool, seed, overwrite=False):
                         .filter(JokerRun.name == run.name)\
                         .filter(~AllStar.apogee_id.in_(done_subq))\
                         .filter(Status.id == 0)\
-                        .order_by(AllStar.apogee_id).distinct()
+                        .group_by(AllStar.apogee_id).distinct()
 
     # Base query to get a StarResult for a given Star so we can update the
     # status, etc.
