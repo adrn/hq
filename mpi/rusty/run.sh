@@ -2,9 +2,9 @@
 #SBATCH -J apogee
 #SBATCH -o apogee.o%j
 #SBATCH -e apogee.e%j
-#SBATCH -N 4
-#SBATCH -t 24:00:00
-#SBATCH -p gen
+#SBATCH -N 8
+#SBATCH -t 72:00:00
+#SBATCH -p cca
 
 source ~/.bash_profile
 
