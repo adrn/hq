@@ -74,8 +74,8 @@ def initialize_db(allVisit_file, allStar_file, database_path,
     # LOW_SNR, PERSIST_HIGH, PERSIST_JUMP_POS, PERSIST_JUMP_NEG
     skip_mask = np.sum(2 ** np.array([4, 9, 12, 13]))
     allvisit_tbl = allvisit_tbl[np.isfinite(allvisit_tbl['VHELIO']) &
-                                np.isfinite(allvisit_tbl['VRELERR']) &
-                                (allvisit_tbl['VRELERR'] < 100.) & # MAGIC
+                                np.isfinite(allvisit_tbl['VRELERR'])]
+    allvisit_tbl = allvisit_tbl[(allvisit_tbl['VRELERR'] < 100.) & # MAGIC NUMBER
                                 ((allvisit_tbl['STARFLAG'] & skip_mask) == 0)]
 
     v_apogee_ids, counts = np.unique(allvisit_tbl['APOGEE_ID'],
