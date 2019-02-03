@@ -1,5 +1,5 @@
 # Standard library
-from os.path import abspath, expanduser
+from os.path import abspath, expanduser, basename, splitext, join
 
 # Third-party
 from astropy.io import fits
@@ -11,6 +11,7 @@ from ..log import log as logger
 from .connect import db_connect, Base
 from .model import AllStar, AllVisit, Status
 from .helpers import paged_query
+from ..config import HQ_CACHE_PATH
 
 __all__ = ['initialize_db']
 
@@ -37,7 +38,7 @@ def tblrow_to_dbrow(tblrow, colnames, varchar_cols=[]):
     return row_data
 
 
-def initialize_db(allVisit_file, allStar_file, database_path,
+def initialize_db(allVisit_file, allStar_file, 
                   drop_all=False, batch_size=4096, min_nvisits=3,
                   progress=True):
     """Initialize the database given FITS filenames for the APOGEE data.
@@ -50,8 +51,6 @@ def initialize_db(allVisit_file, allStar_file, database_path,
         Full path to APOGEE allVisit file.
     allStar_file : str
         Full path to APOGEE allStar file.
-    database_file : str
-        Filename (not path) of database file in cache path.
     drop_all : bool (optional)
         Drop all existing tables and re-create the database.
     batch_size : int (optional)
@@ -65,6 +64,10 @@ def initialize_db(allVisit_file, allStar_file, database_path,
     else:
         iterate = lambda x: x
         load_print = print
+    
+    run_name = splitext(basename(allVisit_file))[0][9:]
+    database_path = join(HQ_CACHE_PATH, 
+                         'apogee-{0}.sqlite'.format(run_name))
 
     norm = lambda x: abspath(expanduser(x))
     allvisit_tbl = fits.getdata(norm(allVisit_file))
