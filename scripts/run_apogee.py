@@ -27,6 +27,7 @@ are done in serial.
 from os.path import abspath, expanduser, join
 import os
 import time
+import shutil
 
 # Third-party
 import h5py
@@ -43,6 +44,14 @@ from hq.db import JokerRun, AllStar, StarResult, Status
 from hq.config import HQ_CACHE_PATH
 from hq.sample_prior import make_prior_cache
 from hq.samples_analysis import unimodal_P
+
+
+def cache_copy(prior_samples_file):
+    path, filename = os.path.split(prior_samples_file)
+    dest = join('/dev/shm/', filename)
+    if not os.path.exists(dest):
+        shutil.copy(prior_samples_file, dest)
+    return dest
 
 
 def main(config_file, pool, seed, overwrite=False):
@@ -124,6 +133,11 @@ def main(config_file, pool, seed, overwrite=False):
     logger.info("{0} stars left to process for run '{1}'"
                 .format(n_stars, run.name))
 
+    # Ensure that the prior cache file exists on each node for faster reading:
+    # TODO: don't do this on perseus
+    for r in pool.map(cache_copy, [run.prior_samples_file] * pool.size):
+        prior_cache_file_on_node = r
+
     # Ensure that the results file exists - this is where we cache samples that
     # pass the rejection sampling step
     if not os.path.exists(results_filename):
@@ -137,10 +151,11 @@ def main(config_file, pool, seed, overwrite=False):
     # loop through all stars that still need processing and iteratively
     # rejection sample with larger and larger prior sample batch sizes. We do
     # this for efficiency, but the argument for this is somewhat made up...
+    stars = star_query.all()
 
     count = 0 # how many stars we've processed in this star batch
     batch_size = 16 # MAGIC NUMBER: how many stars to process before committing
-    for star in star_query.all():
+    for star in stars:
 
         if result_query.filter(AllStar.apogee_id == star.apogee_id).count() < 1:
             logger.debug('Star {0} has no result object!'
@@ -163,7 +178,7 @@ def main(config_file, pool, seed, overwrite=False):
         try:
             samples, ln_prior = joker.iterative_rejection_sample(
                 data=data, n_requested_samples=run.requested_samples_per_star,
-                prior_cache_file=run.prior_samples_file,
+                prior_cache_file=prior_cache_file_on_node,
                 n_prior_samples=run.max_prior_samples, return_logprobs=True)
 
         except Exception as e:
