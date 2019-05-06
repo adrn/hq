@@ -88,12 +88,16 @@ def main(config_file, pool, seed, overwrite=False):
 
     # Create a cache of prior samples (if it doesn't exist) and store the
     # filename in the database.
-    if not os.path.exists(run.prior_samples_file) or overwrite:
+    if not os.path.exists(run.prior_samples_file):
         logger.debug("Prior samples file not found - generating {0} samples..."
                      .format(config['prior']['num_cache']))
         make_prior_cache(run.prior_samples_file, joker,
                          nsamples=config['prior']['num_cache'])
         logger.debug("...done")
+    else:
+        logger.info("Using pre-generated prior sample cache at {0}. Delete this"
+                    " if you'd like to re-generate!"
+                    .format(run.prior_samples_file))
 
     # Get done APOGEE ID's
     done_subq = session.query(AllStar.apogee_id)\
