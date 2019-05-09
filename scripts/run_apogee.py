@@ -47,8 +47,19 @@ from hq.samples_analysis import unimodal_P
 
 
 def cache_copy(prior_samples_file):
+    from mpi4py import MPI
+    rank = os.environ.get('OMPI_COMM_WORLD_LOCAL_RANK', None)
+
     path, filename = os.path.split(prior_samples_file)
     dest = join('/dev/shm/', filename)
+
+    if rank is None or str(rank).strip() != '1':
+        logger.log(1, "Process {} on {} exiting"
+                   .format(rank, MPI.Get_processor_name()))
+        return dest
+    
+    logger.debug("Process {} on {} copying prior cache file..."
+                 .format(rank, MPI.Get_processor_name()))
     if not os.path.exists(dest):
         shutil.copy(prior_samples_file, dest)
     return dest
@@ -122,7 +133,7 @@ def main(config_file, pool, seed, overwrite=False):
                         .filter(JokerRun.name == run.name)\
                         .filter(~AllStar.apogee_id.in_(done_subq))\
                         .filter(Status.id == 0)\
-                        .group_by(AllStar.apogee_id).distinct()
+                        .group_by(AllStar.apogee_id).distinct().limit(10)
 
     # Base query to get a StarResult for a given Star so we can update the
     # status, etc.
@@ -139,8 +150,13 @@ def main(config_file, pool, seed, overwrite=False):
 
     # Ensure that the prior cache file exists on each node for faster reading:
     # TODO: don't do this on perseus
-    for r in pool.map(cache_copy, [run.prior_samples_file] * pool.size):
-        prior_cache_file_on_node = r
+    if 'MPI' in pool.__class__.__name__:
+        logger.debug("Copying prior cache file to nodes")
+        for r in pool.map(cache_copy, [run.prior_samples_file] * pool.size):
+            prior_cache_file_on_node = r
+        logger.debug("...done copying prior cache file to nodes")
+    else:
+        prior_cache_file_on_node = run.prior_samples_file
 
     # Ensure that the results file exists - this is where we cache samples that
     # pass the rejection sampling step
@@ -180,7 +196,7 @@ def main(config_file, pool, seed, overwrite=False):
         logger.log(1, "\t {0} visits loaded ({1:.2f} seconds)"
                    .format(len(data.rv), time.time()-t0))
         try:
-            samples, ln_prior = joker.iterative_rejection_sample(
+            samples, ln_prior, ln_likelihood = joker.iterative_rejection_sample(
                 data=data, n_requested_samples=run.requested_samples_per_star,
                 prior_cache_file=prior_cache_file_on_node,
                 n_prior_samples=run.max_prior_samples, return_logprobs=True)
