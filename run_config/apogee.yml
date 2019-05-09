@@ -1,5 +1,5 @@
-name: apogee-sample-jitter
-database_file: apogee.sqlite
+name: apogee-r12
+database_file: apogee-r12.sqlite
 hyperparams:
   P_min: 1 day
   P_max: 32768 day
