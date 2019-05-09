@@ -42,10 +42,9 @@ def main(pool):
         logger.log(1, "\t {0} visits loaded ({1:.2f} seconds)"
                    .format(len(data.rv), time.time()-_t0))
         try:
-            samples, ln_prior = joker.iterative_rejection_sample(
-                data=data, n_requested_samples=128,
-                prior_cache_file=prior_filename,
-                n_prior_samples=16_000_000, return_logprobs=True)
+            _ = joker.rejection_sample(
+                data=data, prior_cache_file=prior_filename,
+                return_logprobs=True)
 
         except Exception as e:
             logger.warning("\t Failed sampling for star {0} \n Error: {1}"
