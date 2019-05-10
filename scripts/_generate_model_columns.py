@@ -17,6 +17,7 @@ numpy_type_map[np.int16] = 'types.SmallInteger'
 numpy_type_map[np.int32] = 'types.Integer'
 numpy_type_map[np.int64] = 'types.BigInteger'
 numpy_type_map[np.str_] = 'types.String'
+numpy_type_map[np.bytes_] = 'types.String'
 
 def table_to_column_code(table, skip=None):
     """
@@ -33,9 +34,16 @@ def table_to_column_code(table, skip=None):
             continue
 
         dtype,_ = table.dtype.fields[name]
-        sql_type = numpy_type_map[table[name].dtype.type]
+        _type = table[name].dtype.type
+        
+        if _type not in numpy_type_map:
+            print(name, 'no type')
+            continue
+        sql_type = numpy_type_map[_type]
 
         if len(dtype.shape) > 0:
+            print("skipping ", name)
+            continue # HACK
             sql_type = 'postgresql.ARRAY({})'.format(sql_type)
 
         col_map[name.lower()] = ('{name} = Column("{name}", {type})'
@@ -43,16 +51,14 @@ def table_to_column_code(table, skip=None):
 
     return col_map
 
-def main(allVisit_file, allStar_file, rc_file, **kwargs):
+def main(allVisit_file, allStar_file, **kwargs):
     norm = lambda x: os.path.abspath(os.path.expanduser(x))
     allvisit_tbl = Table.read(norm(allVisit_file), format='fits', hdu=1)
     allstar_tbl = Table.read(norm(allStar_file), format='fits', hdu=1)
-    rc_tbl = Table.read(norm(rc_file), format='fits', hdu=1)
 
     # Columns to skip
     allstar_skip = ['VISITS', 'ALL_VISITS', 'ALL_VISIT_PK', 'VISIT_PK']
     allvisit_skip = []
-    rc_skip = ['VISITS', 'ALL_VISITS', 'ALL_VISIT_PK', 'VISIT_PK']
 
     # populate columns of the tables
     print("-------- AllStar --------")
@@ -70,12 +76,6 @@ def main(allVisit_file, allStar_file, rc_file, **kwargs):
         print(col)
 
     print("\n"*4)
-    print("-------------------------------------------------------------------")
-    print("\n"*4)
-
-    print("-------- Red Clump --------")
-    for name,col in table_to_column_code(rc_tbl, skip=rc_skip).items():
-        print(col)
 
 if __name__ == "__main__":
     from argparse import ArgumentParser
@@ -87,9 +87,6 @@ if __name__ == "__main__":
                         type=str, help="Path to APOGEE allStar FITS file.")
     parser.add_argument("--allvisit", dest="allVisit_file", required=True,
                         type=str, help="Path to APOGEE allVisit FITS file.")
-    parser.add_argument("--redclump", dest="rc_file", required=True,
-                        type=str, help="Path to APOGEE Red Clump catalog FITS "
-                                       "file.")
 
     args = parser.parse_args()
 
