@@ -35,6 +35,7 @@ import numpy as np
 from schwimmbad import choose_pool
 from thejoker.log import log as joker_logger
 from thejoker.sampler import TheJoker
+from thejoker.samples import JokerSamples
 import yaml
 
 # Project
@@ -57,7 +58,7 @@ def cache_copy(prior_samples_file):
         logger.log(0, "Process {} on {} exiting"
                    .format(rank, MPI.Get_processor_name()))
         return dest
-    
+
     logger.debug("Process {} on {} copying prior cache file..."
                  .format(rank, MPI.Get_processor_name()))
     if not os.path.exists(dest):
@@ -195,16 +196,22 @@ def main(config_file, pool, seed, overwrite=False):
         data = star.get_rvdata()
         logger.log(1, "\t {0} visits loaded ({1:.2f} seconds)"
                    .format(len(data.rv), time.time()-t0))
-        try:
-            samples, ln_prior, ln_likelihood = joker.iterative_rejection_sample(
-                data=data, n_requested_samples=run.requested_samples_per_star,
-                prior_cache_file=prior_cache_file_on_node,
-                n_prior_samples=run.max_prior_samples, return_logprobs=True)
 
-        except Exception as e:
-            logger.warning("\t Failed sampling for star {0} \n Error: {1}"
-                           .format(star.apogee_id, str(e)))
-            continue
+        # TODO: add another overwrite flag to overwrite this bit too:
+        if star.apogee_id in results_f:
+            samples = JokerSamples.from_hdf5(results_f[star.apogee_id])
+
+        else:
+            try:
+                samples, ln_prior, ln_likelihood = joker.iterative_rejection_sample(
+                    data=data, n_requested_samples=run.requested_samples_per_star,
+                    prior_cache_file=prior_cache_file_on_node,
+                    n_prior_samples=run.max_prior_samples, return_logprobs=True)
+
+            except Exception as e:
+                logger.warning("\t Failed sampling for star {0} \n Error: {1}"
+                               .format(star.apogee_id, str(e)))
+                continue
 
         logger.debug("\t done sampling - {0} raw samples returned "
                      "({1:.2f} seconds)".format(len(samples),
