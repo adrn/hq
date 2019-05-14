@@ -34,8 +34,7 @@ import h5py
 import numpy as np
 from schwimmbad import choose_pool
 from thejoker.log import log as joker_logger
-from thejoker.sampler import TheJoker
-from thejoker.samples import JokerSamples
+from thejoker.sampler import TheJoker, JokerSamples
 import yaml
 
 # Project
