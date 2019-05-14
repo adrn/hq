@@ -199,6 +199,7 @@ def main(config_file, pool, seed, overwrite=False):
         # TODO: add another overwrite flag to overwrite this bit too:
         if star.apogee_id in results_f:
             samples = JokerSamples.from_hdf5(results_f[star.apogee_id])
+            n_actual_samples = len(samples)
 
         else:
             try:
@@ -212,27 +213,27 @@ def main(config_file, pool, seed, overwrite=False):
                                .format(star.apogee_id, str(e)))
                 continue
 
-        logger.debug("\t done sampling - {0} raw samples returned "
-                     "({1:.2f} seconds)".format(len(samples),
-                                                time.time()-t0))
+            logger.debug("\t done sampling - {0} raw samples returned "
+                         "({1:.2f} seconds)".format(len(samples),
+                                                    time.time()-t0))
 
-        # For now, it's sufficient to write the run results to an HDF5 file
-        n = run.requested_samples_per_star
-        all_ln_probs = ln_prior[:n]
-        samples = samples[:n]
-        n_actual_samples = len(all_ln_probs)
+            # For now, it's sufficient to write the run results to an HDF5 file
+            n = run.requested_samples_per_star
+            all_ln_probs = ln_prior[:n]
+            samples = samples[:n]
+            n_actual_samples = len(all_ln_probs)
 
-        # Write the samples that pass to the results file
-        if star.apogee_id in results_f:
-            del results_f[star.apogee_id]
+            # Write the samples that pass to the results file
+            if star.apogee_id in results_f:
+                del results_f[star.apogee_id]
 
-        g = results_f.create_group(star.apogee_id)
-        samples.to_hdf5(g)
+            g = results_f.create_group(star.apogee_id)
+            samples.to_hdf5(g)
 
-        if 'ln_prior_probs' in g:
-            del g['ln_prior_probs']
-        g.create_dataset('ln_prior_probs', data=all_ln_probs)
-        results_f.flush()
+            if 'ln_prior_probs' in g:
+                del g['ln_prior_probs']
+            g.create_dataset('ln_prior_probs', data=all_ln_probs)
+            results_f.flush()
 
         logger.debug("\t saved samples ({:.2f} seconds)".format(time.time()-t0))
 
