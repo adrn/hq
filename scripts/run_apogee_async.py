@@ -94,10 +94,6 @@ n_prior_samples = config['prior']['max_samples']
 # Create a file to cache the resulting posterior samples
 results_filename = join(HQ_CACHE_PATH, "{0}.hdf5".format(config['name']))
 
-# Ensure that the results file exists - this is where we cache samples that
-# pass the rejection sampling step
-results_f = h5py.File(results_filename, 'a')
-
 with h5py.File(prior_cache_file, 'r') as f:
     prior_samples = np.array(f['samples']).astype('f8')
     prior_units = [u.Unit(uu) for uu in f.attrs['units']]
@@ -136,12 +132,14 @@ def callback(future):
 
     apogee_id, samples, ln_prior, ln_likelihood = res
 
-    g = results_f.create_group(apogee_id)
-    samples.to_hdf5(g)
+    # Ensure that the results file exists - this is where we cache samples that
+    # pass the rejection sampling step
+    with h5py.File(results_filename, 'a') as results_f:
+        g = results_f.create_group(apogee_id)
+        samples.to_hdf5(g)
 
-    g.create_dataset('ln_prior', data=ln_prior)
-    g.create_dataset('ln_likelihood', data=ln_likelihood)
-    results_f.flush()
+        g.create_dataset('ln_prior', data=ln_prior)
+        g.create_dataset('ln_likelihood', data=ln_likelihood)
 
     logger.debug("{0}: done, {1} samples returned ".format(apogee_id,
                                                            len(samples)))
