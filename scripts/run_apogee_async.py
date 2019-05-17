@@ -139,9 +139,6 @@ def main(pool, overwrite=False):
                         .group_by(AllStar.apogee_id).distinct()
 
     n_stars = star_query.count()
-
-    # HACK:
-    star_query = session.query(AllStar)
     logger.debug("{0} stars left to process for run '{1}'"
                  .format(n_stars, run.name))
 
