@@ -25,68 +25,27 @@ from hq.config import HQ_CACHE_PATH
 
 
 ##############################################################################
-# TODO: shite
+# Configuration
 #
 seed = 42
+log_level = logging.DEBUG
+mpi = True
+config_file = '../../run_config/apogee.yml'
+overwrite = False
 #
 ##############################################################################
 
 
-# Define parser object
-parser = ArgumentParser(description="")
-
-vq_group = parser.add_mutually_exclusive_group()
-vq_group.add_argument('-v', '--verbose', action='count', default=0,
-                      dest='verbosity')
-vq_group.add_argument('-q', '--quiet', action='count', default=0,
-                      dest='quietness')
-
-parser.add_argument("--overwrite", dest="overwrite", default=False,
-                    action="store_true",
-                    help="Overwrite any existing results for this "
-                         "JokerRun.")
-
-parser.add_argument("-s", "--seed", dest="seed", default=None, type=int,
-                    help="Random number seed")
-
-group = parser.add_mutually_exclusive_group()
-group.add_argument("--procs", dest="n_procs", default=1,
-                   type=int, help="Number of processes.")
-group.add_argument("--mpi", dest="mpi", default=False,
-                   action="store_true", help="Run with MPI.")
-
-parser.add_argument("-c", "--config", dest="config_file", required=True,
-                    type=str, help="Path to config file that specifies the "
-                                   "parameters for this JokerRun.")
-
-args = parser.parse_args()
-
-loggers = [joker_logger, logger]
-
-# Set logger level based on verbose flags
-if args.verbosity == 1:
-    level = logging.DEBUG
-elif args.verbosity == 2:
-    level = 1
-elif args.quietness == 1:
-    level = logging.WARNING
-elif args.quietness == 2:
-    level = logging.ERROR
-else:
-    level = logging.INFO
-
 for l in [logger, joker_logger]:
-    l.setLevel(level)
+    l.setLevel(log_level)
 
-if args.mpi:
+if mpi:
     Pool = MPIAsyncPool
-elif args.n_procs > 1:
-    raise NotImplementedError("Sorry.")
 else:
     Pool = SerialPool
 
 # Load the prior samples in every process:
-with open(args.config_file, 'r') as f:
+with open(config_file, 'r') as f:
     config = yaml.load(f.read())
 prior_cache_file = join(HQ_CACHE_PATH, config['prior']['samples_file'])
 n_prior_samples = config['prior']['max_samples']
@@ -214,7 +173,7 @@ def main(config_file, pool, overwrite=False):
 
 
 with Pool() as pool:
-    main(config_file=args.config_file, pool=pool,
-         overwrite=args.overwrite)
+    main(config_file=config_file, pool=pool,
+         overwrite=overwrite)
 
 sys.exit(0)
