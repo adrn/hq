@@ -54,7 +54,7 @@ def cache_copy(prior_samples_file):
     dest = join('/dev/shm/', filename)
 
     if rank is None or str(rank).strip() != '1':
-        logger.log(1, "Process {} on {} exiting"
+        logger.log(0, "Process {} on {} exiting"
                    .format(rank, MPI.Get_processor_name()))
         return dest
 
