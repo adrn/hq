@@ -30,7 +30,7 @@ from hq.config import HQ_CACHE_PATH
 seed = 42
 log_level = logging.DEBUG
 mpi = True
-config_file = '../../run_config/apogee.yml'
+config_file = '../run_config/apogee.yml'
 overwrite = False
 #
 ##############################################################################
