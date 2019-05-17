@@ -187,23 +187,24 @@ def main(config_file, pool, overwrite=False):
                         .join(StarResult, JokerRun, Status)\
                         .filter(AllStar.apogee_id != '')\
                         .filter(JokerRun.name == run.name)\
-                        .group_by(AllStar.apogee_id).distinct()
+                        .group_by(AllStar.apogee_id).distinct().limit(10)
 
     n_stars = star_query.count()
     logger.info("{0} stars left to process for run '{1}'"
                 .format(n_stars, run.name))
 
     tasks = []
-    for star in star_query.all():
-        # Write the samples that pass to the results file
-        if star.apogee_id in results_f:
-            if overwrite:
-                del results_f[star.apogee_id]
-            else:
-                continue
+    with h5py.File(results_filename, 'a') as results_f:
+        for star in star_query.all():
+            # Write the samples that pass to the results file
+            if star.apogee_id in results_f:
+                if overwrite:
+                    del results_f[star.apogee_id]
+                else:
+                    continue
 
-        data = star.get_rvdata()
-        tasks.append([joker, star.apogee_id, data])
+            data = star.get_rvdata()
+            tasks.append([joker, star.apogee_id, data])
 
     logger.info('{0} stars in process queue'.format(len(tasks)))
 
