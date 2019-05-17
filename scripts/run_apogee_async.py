@@ -183,43 +183,19 @@ def main(config_file, pool, overwrite=False):
     joker = TheJoker(params, random_state=rnd)
     logger.debug("Processing pool has size = {0}".format(pool.size))
 
-    # Get done APOGEE ID's
-    done_subq = session.query(AllStar.apogee_id)\
-                       .join(StarResult, JokerRun, Status)\
-                       .filter(JokerRun.name == run.name)\
-                       .filter(Status.id > 0).distinct()
-
-    # Query to get all stars associated with this run that need processing:
-    # they should have a status id = 0 (needs processing)
+    # Query to get all stars associated with this run:
     star_query = session.query(AllStar)\
                         .join(StarResult, JokerRun, Status)\
                         .filter(AllStar.apogee_id != '')\
                         .filter(JokerRun.name == run.name)\
-                        .filter(~AllStar.apogee_id.in_(done_subq))\
-                        .filter(Status.id == 0)\
                         .group_by(AllStar.apogee_id).distinct()
-
-    # Base query to get a StarResult for a given Star so we can update the
-    # status, etc.
-    result_query = session.query(StarResult).join(AllStar, JokerRun)\
-                                            .filter(JokerRun.name == run.name)\
-                                            .filter(Status.id == 0)\
-                                            .filter(~AllStar.apogee_id.in_(done_subq))
 
     n_stars = star_query.count()
     logger.info("{0} stars left to process for run '{1}'"
                 .format(n_stars, run.name))
 
     tasks = []
-    for star in star_query:
-
-        if result_query.filter(AllStar.apogee_id == star.apogee_id).count() < 1:
-            logger.debug('Star {0} has no result object!'
-                         .format(star.apogee_id))
-            continue
-
-        data = star.get_rvdata()
-
+    for star in star_query.all():
         # Write the samples that pass to the results file
         if star.apogee_id in results_f:
             if overwrite:
@@ -227,6 +203,7 @@ def main(config_file, pool, overwrite=False):
             else:
                 continue
 
+        data = star.get_rvdata()
         tasks.append([joker, star.apogee_id, data])
 
     logger.info('{0} stars in process queue'.format(len(tasks)))
