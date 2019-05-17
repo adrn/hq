@@ -11,7 +11,7 @@ import astropy.units as u
 import h5py
 import numpy as np
 from thejoker.log import log as joker_logger
-from thejoker.sampler import TheJoker
+from thejoker.sampler import TheJoker, JokerParams
 from tqdm import tqdm
 import yaml
 from schwimmbad import SerialPool
@@ -30,11 +30,19 @@ from hq.config import HQ_CACHE_PATH
 seed = 42
 log_level = logging.DEBUG
 mpi = True
-config_file = '../run_config/apogee.yml'
 overwrite = False
+database_file = 'apogee-isit.sqlite'
+run_name = 'isit'
+
+# The Joker
+params = JokerParams(P_min=8*u.day, P_max=32768*u.day,
+                     jitter=(4, 3.), jitter_unit=u.m/u.s,
+                     poly_trend=3)
+n_requested_samples = 4
+n_prior_samples = 262144
+prior_cache_file = 'P8-32768_prior_samples.hdf5'
 #
 ##############################################################################
-
 
 for l in [logger, joker_logger]:
     l.setLevel(log_level)
@@ -45,20 +53,15 @@ else:
     Pool = SerialPool
 
 # Load the prior samples in every process:
-with open(config_file, 'r') as f:
-    config = yaml.load(f.read())
-prior_cache_file = join(HQ_CACHE_PATH, config['prior']['samples_file'])
-n_prior_samples = config['prior']['max_samples']
+prior_cache_file = join(HQ_CACHE_PATH, prior_cache_file)
 
 # Create a file to cache the resulting posterior samples
-results_filename = join(HQ_CACHE_PATH, "{0}.hdf5".format(config['name']))
+results_filename = join(HQ_CACHE_PATH, "{0}.hdf5".format(run_name))
 
 with h5py.File(prior_cache_file, 'r') as f:
     prior_samples = np.array(f['samples']).astype('f8')
     prior_units = [u.Unit(uu) for uu in f.attrs['units']]
     ln_prior_probs = np.array(f['ln_prior_probs'])
-
-n_requested_samples = config['hyperparams']['requested_samples_per_star']
 
 # ----------------------------------------------------------------------------
 
@@ -104,25 +107,12 @@ def callback(future):
                                                            len(samples)))
 
 
-def main(config_file, pool, overwrite=False):
-    config_file = abspath(expanduser(config_file))
-
-    # parse config file
-    with open(config_file, 'r') as f:
-        config = yaml.load(f.read())
-        config['config_file'] = config_file
-
-    # filename of sqlite database
-    if 'database_file' not in config:
-        database_file = None
-
-    else:
-        database_file = config['database_file']
+def main(pool, overwrite=False):
 
     db_path = join(HQ_CACHE_PATH, database_file)
     if not os.path.exists(db_path):
         raise IOError("sqlite database not found at '{0}'\n Did you run "
-                      "scripts/initdb.py yet for that database?"
+                      "scripts/db_init.py yet for that database?"
                       .format(db_path))
 
     logger.debug("Connecting to sqlite database at '{0}'".format(db_path))
@@ -131,8 +121,8 @@ def main(config_file, pool, overwrite=False):
     session = Session()
 
     # Retrieve or create a JokerRun instance
-    run = get_run(config, session, overwrite=overwrite)
-    params = run.get_joker_params()
+    run = get_run(run_name, params, n_requested_samples, session,
+                  overwrite=overwrite)
 
     # Create TheJoker sampler instance with the specified random seed and pool
     rnd = np.random.RandomState(seed=seed)
@@ -146,11 +136,14 @@ def main(config_file, pool, overwrite=False):
                         .join(StarResult, JokerRun, Status)\
                         .filter(AllStar.apogee_id != '')\
                         .filter(JokerRun.name == run.name)\
-                        .group_by(AllStar.apogee_id).distinct().limit(10)
+                        .group_by(AllStar.apogee_id).distinct()
 
     n_stars = star_query.count()
-    logger.info("{0} stars left to process for run '{1}'"
-                .format(n_stars, run.name))
+
+    # HACK:
+    star_query = session.query(AllStar)
+    logger.debug("{0} stars left to process for run '{1}'"
+                 .format(n_stars, run.name))
 
     tasks = []
     with h5py.File(results_filename, 'a') as results_f:
@@ -167,13 +160,13 @@ def main(config_file, pool, overwrite=False):
 
     logger.info('{0} stars in process queue'.format(len(tasks)))
 
-    for r in tqdm(pool.map(worker, tasks, callback=callback),
+    for r in tqdm(pool.starmap(worker, tasks, callback=callback),
                   total=len(tasks)):
         pass
 
 
-with Pool() as pool:
-    main(config_file=config_file, pool=pool,
-         overwrite=overwrite)
+if __name__ == '__main__':
+    with Pool() as pool:
+        main(pool=pool, overwrite=overwrite)
 
-sys.exit(0)
+    sys.exit(0)
