@@ -14,7 +14,8 @@ from thejoker.log import log as joker_logger
 from thejoker.sampler import TheJoker
 from tqdm import tqdm
 import yaml
-from schwimmbad import SerialPool, MPIAsyncPool
+from schwimmbad import SerialPool
+from schwimmbad.mpi import MPIAsyncPool
 
 # Project
 from hq.log import log as logger
