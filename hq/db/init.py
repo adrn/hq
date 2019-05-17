@@ -38,7 +38,7 @@ def tblrow_to_dbrow(tblrow, colnames, varchar_cols=[]):
     return row_data
 
 
-def initialize_db(allVisit_file, allStar_file, 
+def initialize_db(allVisit_file, allStar_file,
                   drop_all=False, batch_size=4096, min_nvisits=3,
                   progress=True):
     """Initialize the database given FITS filenames for the APOGEE data.
@@ -64,9 +64,9 @@ def initialize_db(allVisit_file, allStar_file,
     else:
         iterate = lambda x: x
         load_print = print
-    
+
     run_name = splitext(basename(allVisit_file))[0][9:]
-    database_path = join(HQ_CACHE_PATH, 
+    database_path = join(HQ_CACHE_PATH,
                          'apogee-{0}.sqlite'.format(run_name))
 
     norm = lambda x: abspath(expanduser(x))

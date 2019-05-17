@@ -15,7 +15,7 @@ from .model import JokerRun, AllStar, AllVisit, StarResult, AllVisitToAllStar
 __all__ = ['get_run', 'paged_query']
 
 
-def get_run(config, session, overwrite=False):
+def get_run(name, joker_params, n_requested_samples, session, overwrite=False):
     """Get a JokerRun row instance. Create one if it doesn't exist, otherwise
     just return the existing one.
     """
@@ -23,16 +23,16 @@ def get_run(config, session, overwrite=False):
     # See if this run (by name) is in the database already, if so, grab that.
     try:
         run = session.query(JokerRun).filter(
-            JokerRun.name == config['name']).one()
+            JokerRun.name == name).one()
         logger.info("JokerRun '{0}' already found in database"
-                    .format(config['name']))
+                    .format(name))
 
     except NoResultFound:
         run = None
 
     except MultipleResultsFound:
         raise MultipleResultsFound("Multiple JokerRun rows found for name '{0}'"
-                                   .format(config['name']))
+                                   .format(name))
 
     if run is not None:
         if overwrite:
@@ -49,40 +49,40 @@ def get_run(config, session, overwrite=False):
     # If we've gotten here, this run doesn't exist in the database yet, so
     # create it using the parameters read from the config file.
     logger.info("JokerRun '{0}' not found in database, creating entry..."
-                .format(config['name']))
+                .format(name))
 
     # Create a JokerRun for this run
     run = JokerRun()
-    run.name = config['name']
-    run.P_min = u.Quantity(*config['hyperparams']['P_min'].split())
-    run.P_max = u.Quantity(*config['hyperparams']['P_max'].split())
-    run.requested_samples_per_star = int(
-        config['hyperparams']['requested_samples_per_star'])
-    run.max_prior_samples = int(config['prior']['max_samples'])
-    run.prior_samples_file = join(HQ_CACHE_PATH,
-                                  config['prior']['samples_file'])
+    run.name = name
+    run.P_min = joker_params.P_min
+    run.P_max = joker_params.P_max
+    run.requested_samples_per_star = n_requested_samples
 
-    if 'jitter' in config['hyperparams']:
+    # TODO:
+    run.prior_samples_file = ''
+    run.max_prior_samples = 0
+
+    if hasattr(joker_params.jitter, 'unit'):
         # jitter is fixed to some quantity, specified in config file
-        run.jitter = u.Quantity(*config['hyperparams']['jitter'].split())
+        run.jitter = joker_params.jitter
         logger.debug('Jitter is fixed to: {0:.2f}'.format(run.jitter))
 
-    elif 'jitter_prior_mean' in config['hyperparams']:
+    elif joker_params.jitter == 0 * u.m/u.s:
+        # no jitter is specified, assume no jitter
+        run.jitter = 0. * u.m/u.s
+        logger.debug('No jitter.')
+
+    else:
         # jitter prior parameters are specified in config file
-        run.jitter_mean = config['hyperparams']['jitter_prior_mean']
-        run.jitter_stddev = config['hyperparams']['jitter_prior_stddev']
-        run.jitter_unit = config['hyperparams']['jitter_prior_unit']
+        run.jitter_mean = joker_params.jitter[0]
+        run.jitter_stddev = joker_params.jitter[1]
+        run.jitter_unit = str(joker_params._jitter_unit)
         logger.debug('Sampling in jitter with mean = {0:.2f} (stddev in '
                      'log(var) = {1:.2f}) [{2}]'
                      .format(np.sqrt(np.exp(run.jitter_mean)),
                              run.jitter_stddev, run.jitter_unit))
 
-    else:
-        # no jitter is specified, assume no jitter
-        run.jitter = 0. * u.m/u.s
-        logger.debug('No jitter.')
-
-    run.poly_trend = config['hyperparams'].get('poly_trend', 1)
+    run.poly_trend = joker_params.poly_trend
 
     # Get all stars with >=3 visits
     q = session.query(AllStar).join(AllVisitToAllStar, AllVisit)\
