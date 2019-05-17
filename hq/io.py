@@ -8,7 +8,8 @@ from thejoker.utils import quantity_from_hdf5
 __all__ = ['load_samples']
 
 
-def load_samples(group_or_filename, apogee_id=None, **kwargs):
+def load_samples(group_or_filename, apogee_id=None, return_logprobs=False,
+                 **kwargs):
     """A wrapper around `thejoker.JokerSamples.from_hdf5` that...TODO
 
     Parameters
@@ -31,15 +32,26 @@ def load_samples(group_or_filename, apogee_id=None, **kwargs):
         f = None
         group = group_or_filename
 
+    ln_prior = None
+    ln_likelihood = None
+
     samples_dict = dict()
     for k in group.keys():
-        if k == 'ln_prior_probs': # skip prob values
-            continue
+        if k == 'ln_prior': # skip prob values
+            ln_prior = group['ln_prior']
 
-        samples_dict[k] = quantity_from_hdf5(group, k)
+        elif k == 'ln_likelihood': # skip prob values
+            ln_likelihood = group['ln_likelihood']
+
+        else:
+            samples_dict[k] = quantity_from_hdf5(group, k)
 
     if f is not None:
         f.close()
 
     kwargs.update(samples_dict)
-    return JokerSamples(**kwargs)
+
+    if return_logprobs:
+        return JokerSamples(**kwargs), ln_prior, ln_likelihood
+    else:
+        return JokerSamples(**kwargs)
