@@ -31,16 +31,15 @@ seed = 42
 log_level = logging.DEBUG
 mpi = True
 overwrite = False
-database_file = 'apogee-isit.sqlite'
-run_name = 'isit'
+run_name = 'apogee-r12-l33beta'
 
 # The Joker
-params = JokerParams(P_min=8*u.day, P_max=32768*u.day,
-                     jitter=(4, 3.), jitter_unit=u.m/u.s,
-                     poly_trend=3)
-n_requested_samples = 4
-n_prior_samples = 262144
-prior_cache_file = 'P8-32768_prior_samples.hdf5'
+params = JokerParams(P_min=1*u.day, P_max=32768*u.day,
+                     jitter=(9.5, 1.64), jitter_unit=u.m/u.s, # see infer-jitter
+                     poly_trend=2)
+n_requested_samples = 256
+n_prior_samples = 268_435_456
+prior_cache_file = 'P1-32768_prior_samples.hdf5'
 #
 ##############################################################################
 
@@ -54,6 +53,8 @@ else:
 
 # Load the prior samples in every process:
 prior_cache_file = join(HQ_CACHE_PATH, prior_cache_file)
+database_file = '{}.sqlite'.format(run_name)
+
 
 # Create a file to cache the resulting posterior samples
 results_filename = join(HQ_CACHE_PATH, "{0}.hdf5".format(run_name))

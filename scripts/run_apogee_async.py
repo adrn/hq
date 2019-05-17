@@ -97,6 +97,9 @@ def callback(future):
     # Ensure that the results file exists - this is where we cache samples that
     # pass the rejection sampling step
     with h5py.File(results_filename, 'a') as results_f:
+        if apogee_id in results_f: # TODO: is this ok?
+            del results_f[apogee_id]
+
         g = results_f.create_group(apogee_id)
         samples.to_hdf5(g)
 
