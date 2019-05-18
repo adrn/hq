@@ -9,7 +9,7 @@ from hq.log import logger
 from hq.script_helpers import get_parser
 
 
-def make_run(name):
+def make_run(name, allstar, allvisit):
     run_path = path.join(HQ_CACHE_PATH, name)
 
     if path.exists(run_path):
@@ -27,7 +27,9 @@ def make_run(name):
         template_config = f.read()
 
     with open(path.join(run_path, 'config.yml'), 'w') as f:
-        f.write(template_config.format(run_name=name))
+        f.write(template_config.format(run_name=name,
+                                       allstar=allstar,
+                                       allvisit=allvisit))
 
 
 if __name__ == "__main__":
@@ -40,7 +42,11 @@ if __name__ == "__main__":
 
     parser.add_argument("--name", dest="run_name", required=True,
                         type=str, help="The name of the run.")
+    parser.add_argument("--allstar", dest="allstar", required=True,
+                        type=str, help="Path to the allStar file.")
+    parser.add_argument("--allvisit", dest="allvisit", required=True,
+                        type=str, help="Path to the allVisit file.")
 
     args = parser.parse_args()
 
-    make_run(args.run_name)
+    make_run(args.run_name, args.allstar, args.allvisit)
