@@ -28,7 +28,8 @@ def make_run(name, allstar, allvisit):
 
     with open(path.join(run_path, 'config.yml'), 'w') as f:
         f.write(template_config.format(
-            run_name=name, allstar=path.abspath(path.expanduser(allstar)),
+            run_name=name,
+            allstar=path.abspath(path.expanduser(allstar)),
             allvisit=path.abspath(path.expanduser(allvisit))))
 
 

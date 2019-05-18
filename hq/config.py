@@ -48,3 +48,11 @@ def config_to_jokerparams(config):
         kwargs['jitter_unit'] = u.Unit(jitter_unit)
 
     return JokerParams(**kwargs)
+
+
+def config_to_prior_cache(config, params):
+    prior_filename = ('P{0:.0f}-{1:.0f}_{2:d}_prior_samples.hdf5'
+                      .format(params.P_min.to_value(u.day),
+                              params.P_max.to_value(u.day),
+                              config['prior']['n_samples']))
+    return join(HQ_CACHE_PATH, prior_filename)

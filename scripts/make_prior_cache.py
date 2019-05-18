@@ -7,7 +7,8 @@ import yaml
 from thejoker import TheJoker
 
 # Project
-from hq.config import HQ_CACHE_PATH, config_to_jokerparams
+from hq.config import (HQ_CACHE_PATH, config_to_jokerparams,
+                       config_to_prior_cache)
 from hq.log import logger
 from hq.script_helpers import get_parser
 from hq.sample_prior import make_prior_cache
@@ -20,11 +21,7 @@ def main(name, overwrite):
         config = yaml.load(f.read())
 
     params = config_to_jokerparams(config)
-    prior_filename = ('P{0:.0f}-{1:.0f}_{2:d}_prior_samples.hdf5'
-                      .format(params.P_min.to_value(u.day),
-                              params.P_max.to_value(u.day),
-                              config['prior']['n_samples']))
-    prior_cache_path = path.join(HQ_CACHE_PATH, prior_filename)
+    prior_cache_path = config_to_prior_cache(confi, params)
 
     if path.exists(prior_cache_path) and not overwrite:
         logger.debug("Prior cache file already exists at '{}'! User -o or "
