@@ -27,9 +27,9 @@ def make_run(name, allstar, allvisit):
         template_config = f.read()
 
     with open(path.join(run_path, 'config.yml'), 'w') as f:
-        f.write(template_config.format(run_name=name,
-                                       allstar=allstar,
-                                       allvisit=allvisit))
+        f.write(template_config.format(
+            run_name=name, allstar=path.abspath(path.expanduser(allstar)),
+            allvisit=path.abspath(path.expanduser(allvisit))))
 
 
 if __name__ == "__main__":

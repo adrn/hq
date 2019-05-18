@@ -9,3 +9,6 @@ hyperparams:
   poly_trend: 2
 prior:
   n_samples: 268435456
+data:
+    allstar: {allstar}
+    allvisit: {allvisit}
