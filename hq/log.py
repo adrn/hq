@@ -5,7 +5,7 @@ import logging
 from astropy.logger import StreamHandler
 from astropy.utils import find_current_module
 
-__all__ = ['log']
+__all__ = ['logger']
 
 Logger = logging.getLoggerClass()
 class HQLogger(Logger):
@@ -43,5 +43,5 @@ class HQLogger(Logger):
 
 
 logging.setLoggerClass(HQLogger)
-log = logging.getLogger('hq')
-log._set_defaults()
+logger = logging.getLogger('hq')
+logger._set_defaults()

@@ -1,0 +1,11 @@
+name: {run_name}
+hyperparams:
+  P_min: 1 day
+  P_max: 32768 day
+  requested_samples_per_star: 256 # M_min
+  jitter_prior_mean: 9.5 # See infer-jitter notebook
+  jitter_prior_stddev: 1.64
+  jitter_prior_unit: m/s
+  poly_trend: 2
+prior:
+  n_samples: 268435456
