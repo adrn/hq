@@ -2,6 +2,7 @@
 from astropy.io import fits
 from astropy.table import Table
 from astropy.time import Time
+import astropy.units as u
 import numpy as np
 from thejoker.data import RVData
 

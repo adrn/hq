@@ -21,7 +21,7 @@ def main(name, overwrite):
         config = yaml.load(f.read())
 
     params = config_to_jokerparams(config)
-    prior_cache_path = config_to_prior_cache(confi, params)
+    prior_cache_path = config_to_prior_cache(config, params)
 
     if path.exists(prior_cache_path) and not overwrite:
         logger.debug("Prior cache file already exists at '{}'! User -o or "

@@ -1,6 +1,5 @@
 # Standard library
 from os.path import join, exists
-import os
 import sys
 import time
 
@@ -16,7 +15,7 @@ from schwimmbad.mpi import MPIAsyncPool
 
 # Project
 from hq.data import get_alldata, get_rvdata
-from hq.log import log as logger
+from hq.log import logger
 from hq.config import (HQ_CACHE_PATH, config_to_jokerparams,
                        config_to_prior_cache)
 from hq.script_helpers import get_parser
@@ -28,7 +27,7 @@ def worker(joker, apogee_id, data, config, results_filename):
 
     prior_cache_file = config_to_prior_cache(config, joker.params)
     try:
-        samples, ln_prior, ln_likelihood = joker.iterative_rejection_sample_from_cache(
+        samples, ln_prior, ln_likelihood = joker.iterative_rejection_sample(
             data=data, n_requested_samples=config['requested_samples_per_star'],
             prior_cache_file=prior_cache_file, return_logprobs=True)
     except Exception as e:
@@ -50,7 +49,10 @@ def worker(joker, apogee_id, data, config, results_filename):
 
 
 def callback(future):
-    res = future.result()
+    if isinstance(future, dict) or future is None:
+        res = future
+    else:
+        res = future.result()
 
     if res is None:
         return
@@ -86,7 +88,7 @@ def main(run_name, pool, overwrite=False, seed=None):
         raise IOError("Prior cache file '{0}' does not exist! Did you run "
                       "make_prior_cache.py?")
 
-    with open(results_path, 'a') as f: # ensure the file exists
+    with h5py.File(results_path, 'a') as f: # ensure the file exists
         done_apogee_ids = list(f.keys())
     if overwrite:
         done_apogee_ids = list()
@@ -119,7 +121,7 @@ def main(run_name, pool, overwrite=False, seed=None):
             visits = allvisit[allvisit['APOGEE_ID'] == star['APOGEE_ID']]
             data = get_rvdata(visits)
 
-            tasks.append([joker, star.apogee_id, data, config, results_path])
+            tasks.append([joker, star['APOGEE_ID'], data, config, results_path])
 
     logger.info('{0} stars in process queue'.format(len(tasks)))
 
@@ -145,6 +147,10 @@ if __name__ == '__main__':
     parser.add_argument("-s", "--seed", dest="seed", default=None, type=int,
                         help="Random number seed")
 
+    parser.add_argument("-o", "--overwrite", dest="overwrite", default=False,
+                        action="store_true",
+                        help="Overwrite any existing samplings")
+
     args = parser.parse_args()
 
     if args.mpi:
@@ -153,7 +159,7 @@ if __name__ == '__main__':
         Pool = SerialPool
 
     with Pool() as pool:
-        main(run_name=args.name, pool=pool, overwrite=args.overwrite,
+        main(run_name=args.run_name, pool=pool, overwrite=args.overwrite,
              seed=args.seed)
 
     sys.exit(0)
