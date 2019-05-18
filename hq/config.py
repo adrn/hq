@@ -7,7 +7,7 @@ import numpy as np
 
 # Project
 from thejoker import JokerParams
-from .log import log as logger
+from .log import logger
 
 __all__ = ['config_to_jokerparams']
 
