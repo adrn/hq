@@ -12,3 +12,6 @@ prior:
 data:
     allstar: {allstar}
     allvisit: {allvisit}
+    min_nvisits: 3
+    # starflag_bits: [3, 4, 9, 12, 13, 16, 17]
+    # aspcapflag_bits: [0, 8, 10, 23]
