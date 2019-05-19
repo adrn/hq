@@ -14,10 +14,10 @@ from schwimmbad import SerialPool
 from schwimmbad.mpi import MPIAsyncPool
 
 # Project
-from hq.data import get_alldata, get_rvdata
+from hq.data import get_rvdata
 from hq.log import logger
 from hq.config import (HQ_CACHE_PATH, config_to_jokerparams,
-                       config_to_prior_cache)
+                       config_to_prior_cache, config_to_alldata)
 from hq.script_helpers import get_parser
 
 
@@ -94,10 +94,7 @@ def main(run_name, pool, overwrite=False, seed=None):
         done_apogee_ids = list()
 
     # Get data files out of config file:
-    allstar_path = config['data']['allstar']
-    allvisit_path = config['data']['allvisit']
-    allstar, allvisit = get_alldata(allstar_path, allvisit_path,
-                                    min_nvisits=3)
+    allstar, allvisit = config_to_alldata(config)
     allstar = allstar[~np.isin(allstar['APOGEE_ID'], done_apogee_ids)]
     allvisit = allvisit[np.isin(allvisit['APOGEE_ID'], allstar['APOGEE_ID'])]
 
