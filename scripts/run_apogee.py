@@ -109,8 +109,9 @@ def main(run_name, pool, overwrite=False, seed=None):
 
     tasks = []
     processed_ids = []
+    logger.debug("Loading data and preparing tasks...")
     with h5py.File(results_path, 'a') as results_f:
-        for star in allstar:
+        for star in tqdm(allstar):
             if star['APOGEE_ID'] in processed_ids:
                 continue
             assert star['APOGEE_ID'] not in results_f or overwrite
@@ -120,7 +121,8 @@ def main(run_name, pool, overwrite=False, seed=None):
 
             tasks.append([joker, star['APOGEE_ID'], data, config, results_path])
 
-    logger.info('{0} stars in process queue'.format(len(tasks)))
+    logger.info('Done preparing tasks: {0} stars in process queue'
+                .format(len(tasks)))
 
     for r in tqdm(pool.starmap(worker, tasks, callback=callback),
                   total=len(tasks)):
