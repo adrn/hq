@@ -102,7 +102,7 @@ def main(run_name, pool, overwrite=False, seed=None):
     rnd = np.random.RandomState(seed=seed)
 
     logger.debug("Creating TheJoker instance with {0}".format(rnd))
-    joker = TheJoker(params, random_state=rnd)
+    joker = TheJoker(params, random_state=rnd, n_batches=8) # HACK: MAGIC NUMBER
     logger.debug("Processing pool has size = {0}".format(pool.size))
     logger.debug("{0} stars left to process for run '{1}'"
                  .format(len(allstar), run_name))
