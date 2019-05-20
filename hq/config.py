@@ -63,16 +63,19 @@ def config_to_prior_cache(config, params):
 def config_to_alldata(config):
     allstar_tbl = fits.getdata(config['data']['allstar'])
     allvisit_tbl = fits.getdata(config['data']['allvisit'])
+    logger.log(1, "Opened allstar & allvisit files")
 
     # Remove bad velocities / NaN / Inf values:
     allvisit_tbl = allvisit_tbl[np.isfinite(allvisit_tbl['VHELIO']) &
                                 np.isfinite(allvisit_tbl['VRELERR'])]
     allvisit_tbl = allvisit_tbl[(allvisit_tbl['VRELERR'] < 100.) &
                                 (allvisit_tbl['VHELIO'] != -9999)]
+    logger.log(1, "Filtered bad/NaN/-9999 data")
 
     starflag_bits = config['data'].get('starflag_bits', None)
     aspcapflag_bits = config['data'].get('aspcapflag_bits', None)
     min_nvisits = config['data'].get('min_nvisits', 3)
+    logger.log(1, "Min. number of visits: {0}".format(min_nvisits))
 
     if starflag_bits is None: # use deaults
         # LOW_SNR, PERSIST_HIGH, PERSIST_JUMP_POS, PERSIST_JUMP_NEG
@@ -82,6 +85,7 @@ def config_to_alldata(config):
         starflag_bits += [3, 16, 17]
 
     starflag_mask = np.sum(2 ** np.array(starflag_bits))
+    logger.log(1, "Using STARFLAG bitmask: {0}".format(starflag_mask))
     allvisit_tbl = allvisit_tbl[(allvisit_tbl['STARFLAG'] & starflag_mask) == 0]
 
     # After quality and bitmask cut, figure out what APOGEE_IDs remain
@@ -94,6 +98,7 @@ def config_to_alldata(config):
         # TEFF_WARN, ROTATION_WARN, CHI2_WARN, STAR_BAD
         aspcapflag_bits = [0, 8, 10, 23]
     skip_mask = np.sum(2 ** np.array(aspcapflag_bits))
+    logger.log(1, "Using ASPCAPFLAG bitmask: {0}".format(skip_mask))
     star_mask &= ((allstar_tbl['ASPCAPFLAG'] & skip_mask) == 0)
 
     # Remove stars flagged with:
@@ -107,6 +112,7 @@ def config_to_alldata(config):
     v_apogee_ids2 = np.unique(allvisit_tbl['APOGEE_ID'])
     star_mask2 = np.isin(allstar_tbl['APOGEE_ID'], v_apogee_ids2)
 
+    logger.log(1, "Making astropy Table objects...")
     allvisit_tbl = Table(allvisit_tbl)
     allstar_tbl = Table(allstar_tbl[star_mask2])
 
