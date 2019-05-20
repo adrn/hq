@@ -49,6 +49,11 @@ def config_to_jokerparams(config):
         kwargs['jitter'] = (jitter_mean, jitter_stddev)
         kwargs['jitter_unit'] = u.Unit(jitter_unit)
 
+    std = config['hyperparams'].get('linear_param_std', None)
+    if std is not None:
+        Vinv = np.diag(1 / np.array(std)**2)
+        kwargs['linear_par_Vinv'] = Vinv
+
     return JokerParams(**kwargs)
 
 
