@@ -118,7 +118,8 @@ def config_to_alldata(config):
     star_mask2 = np.isin(allstar_tbl['APOGEE_ID'], v_apogee_ids2)
 
     logger.log(1, "Making astropy Table objects...")
-    allvisit_tbl = Table(allvisit_tbl)
-    allstar_tbl = Table(allstar_tbl[star_mask2])
+    # allvisit_tbl = Table(allvisit_tbl)
+    # allstar_tbl = Table(allstar_tbl[star_mask2])
+    allstar_tbl = allstar_tbl[star_mask2]
 
     return allstar_tbl, allvisit_tbl
