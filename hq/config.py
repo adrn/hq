@@ -3,7 +3,6 @@ from os.path import expanduser, join
 
 # Third-party
 from astropy.io import fits
-from astropy.table import Table
 import astropy.units as u
 import numpy as np
 
@@ -100,14 +99,11 @@ def config_to_alldata(config):
                         v_apogee_ids[counts >= min_nvisits])
 
     if aspcapflag_bits is None: # use defaults
-        # TEFF_WARN, ROTATION_WARN, CHI2_WARN, STAR_BAD
-        aspcapflag_bits = [0, 8, 10, 23]
+        # TEFF_WARN, ROTATION_WARN, STAR_BAD
+        aspcapflag_bits = [0, 8, 23]
     skip_mask = np.sum(2 ** np.array(aspcapflag_bits))
     logger.log(1, "Using ASPCAPFLAG bitmask: {0}".format(skip_mask))
     star_mask &= ((allstar_tbl['ASPCAPFLAG'] & skip_mask) == 0)
-
-    # Remove stars flagged with:
-    # VERY_BRIGHT_NEIGHBOR, SUSPECT_RV_COMBINATION, SUSPECT_BROAD_LINES
     star_mask &= ((allstar_tbl['STARFLAG'] & starflag_mask) == 0)
     allstar_tbl = allstar_tbl[star_mask]
 
@@ -116,10 +112,6 @@ def config_to_alldata(config):
                                         allstar_tbl['APOGEE_ID'])]
     v_apogee_ids2 = np.unique(allvisit_tbl['APOGEE_ID'])
     star_mask2 = np.isin(allstar_tbl['APOGEE_ID'], v_apogee_ids2)
-
-    logger.log(1, "Making astropy Table objects...")
-    # allvisit_tbl = Table(allvisit_tbl)
-    # allstar_tbl = Table(allstar_tbl[star_mask2])
     allstar_tbl = allstar_tbl[star_mask2]
 
     return allstar_tbl, allvisit_tbl
