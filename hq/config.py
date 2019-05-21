@@ -82,15 +82,19 @@ def config_to_alldata(config):
     logger.log(1, "Min. number of visits: {0}".format(min_nvisits))
 
     if starflag_bits is None: # use deaults
-        # LOW_SNR, PERSIST_HIGH, PERSIST_JUMP_POS, PERSIST_JUMP_NEG
-        starflag_bits = [4, 9, 12, 13]
-
         # VERY_BRIGHT_NEIGHBOR, SUSPECT_RV_COMBINATION, SUSPECT_BROAD_LINES
-        starflag_bits += [3, 16, 17]
+        star_starflag_bits = [3, 16, 17]
 
-    starflag_mask = np.sum(2 ** np.array(starflag_bits))
-    logger.log(1, "Using STARFLAG bitmask: {0}".format(starflag_mask))
-    allvisit_tbl = allvisit_tbl[(allvisit_tbl['STARFLAG'] & starflag_mask) == 0]
+        # LOW_SNR, PERSIST_HIGH, PERSIST_JUMP_POS, PERSIST_JUMP_NEG
+        visit_starflag_bits = star_starflag_bits + [4, 9, 12, 13]
+
+    star_starflag_mask = np.sum(2 ** np.array(star_starflag_bits))
+    visit_starflag_mask = np.sum(2 ** np.array(visit_starflag_bits))
+    logger.log(1, "Using STARFLAG bitmask for allStar: {0}"
+               .format(star_starflag_mask))
+    logger.log(1, "Using STARFLAG bitmask for allVisit: {0}"
+               .format(visit_starflag_mask))
+    allvisit_tbl = allvisit_tbl[(allvisit_tbl['STARFLAG'] & visit_starflag_mask) == 0]
 
     # After quality and bitmask cut, figure out what APOGEE_IDs remain
     v_apogee_ids, counts = np.unique(allvisit_tbl['APOGEE_ID'],
@@ -102,10 +106,10 @@ def config_to_alldata(config):
         # TEFF_BAD, LOGG_BAD, VMICRO_BAD, ROTATION_BAD, VSINI_BAD
         aspcapflag_bits = [16, 17, 18, 26, 30]
 
-    skip_mask = np.sum(2 ** np.array(aspcapflag_bits))
-    logger.log(1, "Using ASPCAPFLAG bitmask: {0}".format(skip_mask))
-    star_mask &= ((allstar_tbl['ASPCAPFLAG'] & skip_mask) == 0)
-    star_mask &= ((allstar_tbl['STARFLAG'] & starflag_mask) == 0)
+    aspcapflag_mask = np.sum(2 ** np.array(aspcapflag_bits))
+    logger.log(1, "Using ASPCAPFLAG bitmask: {0}".format(aspcapflag_mask))
+    star_mask &= ((allstar_tbl['ASPCAPFLAG'] & aspcapflag_mask) == 0)
+    star_mask &= ((allstar_tbl['STARFLAG'] & star_starflag_mask) == 0)
     allstar_tbl = allstar_tbl[star_mask]
 
     # Only load visits for stars that we're loading
