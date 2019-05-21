@@ -99,8 +99,9 @@ def config_to_alldata(config):
                         v_apogee_ids[counts >= min_nvisits])
 
     if aspcapflag_bits is None: # use defaults
-        # TEFF_WARN, ROTATION_WARN, STAR_BAD
-        aspcapflag_bits = [0, 8, 23]
+        # TEFF_BAD, LOGG_BAD, VMICRO_BAD, ROTATION_BAD, VSINI_BAD
+        aspcapflag_bits = [16, 17, 18, 26, 30]
+
     skip_mask = np.sum(2 ** np.array(aspcapflag_bits))
     logger.log(1, "Using ASPCAPFLAG bitmask: {0}".format(skip_mask))
     star_mask &= ((allstar_tbl['ASPCAPFLAG'] & skip_mask) == 0)
