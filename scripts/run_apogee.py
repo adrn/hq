@@ -73,6 +73,10 @@ def callback(future):
                                                            len(res['samples'])))
 
 
+def get_extra_std(lnA, c, snr):
+    return np.exp(lnA) / snr + c
+
+
 def main(run_name, pool, overwrite=False, seed=None):
     run_path = join(HQ_CACHE_PATH, run_name)
     with open(join(run_path, 'config.yml'), 'r') as f:
@@ -117,6 +121,10 @@ def main(run_name, pool, overwrite=False, seed=None):
             assert star['APOGEE_ID'] not in results_f or overwrite
 
             visits = allvisit[allvisit['APOGEE_ID'] == star['APOGEE_ID']]
+
+            # HACK:
+            err = get_extra_std(1.5, 0.05, visits['SNR'])
+            visits['VRELERR'] = np.sqrt(visits['VRELERR']**2 + err**2)
             data = get_rvdata(visits)
 
             tasks.append([joker, star['APOGEE_ID'], data, config, results_path])
