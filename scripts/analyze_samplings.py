@@ -74,6 +74,9 @@ def main(run_name):
             else:
                 rows['unimodal'].append(False)
 
+            rows['MAP_ln_likelihood'] = ln_l[MAP_idx]
+            rows['MAP_ln_prior'] = ln_p[MAP_idx]
+
     for k in rows.keys():
         if isinstance(rows[k][0], (Time, u.Quantity)):
             rows[k] = rows[k][0].__class__(rows[k])
