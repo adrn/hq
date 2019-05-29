@@ -30,9 +30,12 @@ def main(run_name):
                         'thejoker-{0}.hdf5'.format(run_name))
     metadata_path = join(HQ_CACHE_PATH, run_name,
                          '{0}-metadata.fits'.format(run_name))
+    logger.debug("Processing results file at {0}".format(results_path))
+    logger.debug("Saving to metadata file at {0}".format(metadata_path))
 
     # Load the data for this run:
     allstar, allvisit = config_to_alldata(config)
+    logger.debug("allstar and allvisit data loaded")
 
     n_requested_samples = config['requested_samples_per_star']
     poly_trend = config['hyperparams']['poly_trend']
