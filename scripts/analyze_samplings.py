@@ -74,8 +74,8 @@ def main(run_name):
             else:
                 rows['unimodal'].append(False)
 
-            rows['MAP_ln_likelihood'] = ln_l[MAP_idx]
-            rows['MAP_ln_prior'] = ln_p[MAP_idx]
+            rows['MAP_ln_likelihood'].append(ln_l[MAP_idx])
+            rows['MAP_ln_prior'].append(ln_p[MAP_idx])
 
     for k in rows.keys():
         if isinstance(rows[k][0], (Time, u.Quantity)):
