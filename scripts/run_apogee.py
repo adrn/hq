@@ -73,8 +73,10 @@ def callback(future):
                                                            len(res['samples'])))
 
 
-def get_extra_std(lnA, c, snr):
-    return np.exp(lnA) / snr + c
+def get_new_err(visits, a, b, s):
+    err = visits['VRELERR']
+    snr = visits['SNR']
+    return np.sqrt(s**2 + err**2 + a*snr**b)
 
 
 def main(run_name, pool, overwrite=False, seed=None):
@@ -122,9 +124,9 @@ def main(run_name, pool, overwrite=False, seed=None):
 
             visits = allvisit[allvisit['APOGEE_ID'] == star['APOGEE_ID']]
 
-            # HACK:
-            err = get_extra_std(1.5, 0.05, visits['SNR'])
-            visits['VRELERR'] = np.sqrt(visits['VRELERR']**2 + err**2)
+            # HACK: see Calibrate-visit-rv-err.ipynb
+            visits['VRELERR'] = get_new_err(visits,
+                                            a=145.869, b=-2.8215, s=0.168)
             data = get_rvdata(visits)
 
             tasks.append([joker, star['APOGEE_ID'], data, config, results_path])
