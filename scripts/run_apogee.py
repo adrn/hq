@@ -131,7 +131,7 @@ def main(run_name, pool, overwrite=False, seed=None):
 
 if __name__ == '__main__':
     # Define parser object
-    parser = get_parser(description='TODO',
+    parser = get_parser(description='Run The Joker on APOGEE data',
                         loggers=[logger, joker_logger])
 
     parser.add_argument("--name", dest="run_name", required=True,
