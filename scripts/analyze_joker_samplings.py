@@ -8,23 +8,28 @@ import astropy.units as u
 from astropy.table import Table
 from astropy.time import Time
 import h5py
+import numpy as np
 from tqdm import tqdm
 import yaml
-from thejoker import JokerSamples
+from thejoker import JokerSamples, TheJoker
 
 # Project
 from hq.data import get_rvdata
 from hq.log import logger
-from hq.config import (HQ_CACHE_PATH, config_to_alldata)
+from hq.config import HQ_CACHE_PATH, config_to_alldata, config_to_jokerparams
 from hq.script_helpers import get_parser
 from hq.samples_analysis import (unimodal_P, max_phase_gap, phase_coverage,
-                                 periods_spanned)
+                                 periods_spanned, optimize_mode)
 
 
 def main(run_name):
     run_path = join(HQ_CACHE_PATH, run_name)
     with open(join(run_path, 'config.yml'), 'r') as f:
         config = yaml.load(f.read())
+
+    # Create an instance of The Joker:
+    params = config_to_jokerparams(config)
+    joker = TheJoker(params)
 
     # Get paths to files needed to run
     results_path = join(HQ_CACHE_PATH, run_name,
@@ -78,9 +83,16 @@ def main(run_name):
             else:
                 rows['unimodal'].append(False)
 
-            rows['max_phase_gap'] = max_phase_gap(MAP_sample[0], data)
-            rows['phase_coverage'] = phase_coverage(MAP_sample[0], data)
-            rows['periods_spanned'] = periods_spanned(MAP_sample[0], data)
+            rows['max_phase_gap'].append(max_phase_gap(MAP_sample[0], data))
+            rows['phase_coverage'].append(phase_coverage(MAP_sample[0], data))
+            rows['periods_spanned'].append(periods_spanned(MAP_sample[0], data))
+
+            res = optimize_mode(MAP_sample[0], data, joker,
+                                return_logprobs=True)
+            if res is None:
+                rows['mode_max_ln_likelihood'].append(np.nan)
+            else:
+                rows['mode_max_ln_likelihood'].append(res[2])
 
     for k in rows.keys():
         if isinstance(rows[k][0], (Time, u.Quantity)):
