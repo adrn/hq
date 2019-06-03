@@ -5,6 +5,13 @@
 * Edit the config file to set desired parameters
 * Create the prior cache: `python make_prior_cache.py --name <run name>`
 * Run The Joker sampler on all stars: `python run_apogee.py --name <run name>`
+* Analyze The Joker samplings to determine which stars are complete, which stars
+  need to be followed up with standard MCMC:
+  `python analyze_joker_samplings.py --name <run name>`
+* Run standard MCMC on the unimodal samplings to generate 256 samples:
+  `python run_continue_mcmc.py --name <run name>`
+
+
 
 
 ## Testing:
