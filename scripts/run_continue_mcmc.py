@@ -1,185 +1,129 @@
-"""
-Given output from the initial run, finish sampling by running emcee (needs
-mcmc).
-
-This script must be run *after* run_apogee.py
-
-TODO:
-- For now, this script doesn't update the database. It just writes the chains
-  out to files.
-
-"""
-
 # Standard library
-from os import path
 import os
+from os.path import join, exists
+import sys
+import time
 import pickle
 
 # Third-party
-from astropy.stats import median_absolute_deviation
-import h5py
+from astropy.table import Table
+import matplotlib.pyplot as plt
 import numpy as np
-from schwimmbad import choose_pool
 from thejoker.log import log as joker_logger
-from thejoker.sampler import TheJoker
+from thejoker.sampler import TheJoker, JokerSamples
+from tqdm import tqdm
 import yaml
+from schwimmbad import SerialPool
+from schwimmbad.mpi import MPIAsyncPool
 
 # Project
-from twoface.log import log as logger
-from twoface.db import db_connect, get_run
-from twoface.db import JokerRun, AllStar, StarResult, Status
-from twoface.config import TWOFACE_CACHE_PATH
-from twoface.mcmc_helpers import gelman_rubin, emcee_worker
+from hq.data import get_rvdata
+from hq.log import logger
+from hq.plot import plot_mcmc_diagnostic
+from hq.config import (HQ_CACHE_PATH, config_to_jokerparams, config_to_alldata)
+from hq.script_helpers import get_parser
 
 
-def main(config_file, pool, seed, overwrite=False):
-    config_file = path.abspath(path.expanduser(config_file))
+def worker(joker, apogee_id, data, config, MAP_sample, emcee_cache_path,
+           overwrite):
+    sampler_file = join(emcee_cache_path, '{0}.pickle'.format(apogee_id))
+    plot_file = join(emcee_cache_path, '{0}.png'.format(apogee_id))
+    model_file = join(emcee_cache_path, 'model.pickle')
 
-    # parse config file
-    with open(config_file, 'r') as f:
+    emcee_sampler = None
+    if not exists(sampler_file) or overwrite:
+        t0 = time.time()
+        logger.log(1, "{0}: Starting emcee sampling".format(apogee_id))
+
+        try:
+            model, samples, emcee_sampler = joker.mcmc_sample(
+                data, MAP_sample,
+                n_burn=config['emcee']['n_burn'],
+                n_steps=config['emcee']['n_steps'],
+                n_walkers=config['emcee']['n_walkers'],
+                return_sampler=True)
+        except Exception as e:
+            logger.warning("\t Failed emcee sampling for star {0} \n Error: {1}"
+                           .format(apogee_id, str(e)))
+            return None
+
+        logger.debug("{0}: done sampling - {1} raw samples returned "
+                     "({2:.2f} seconds)".format(apogee_id, len(samples),
+                                                time.time() - t0))
+
+        # np.save(chain_file, emcee_sampler.chain.astype('f4'))
+        with open(sampler_file, 'wb') as f:
+            pickle.dump(emcee_sampler, f)
+
+        if not exists(model_file):
+            with open(model_file, 'wb') as f:
+                pickle.dump(model, f)
+
+    if not exists(plot_file):
+        logger.debug('Making plots for {0}'.format(apogee_id))
+
+        if emcee_sampler is None:
+            with open(sampler_file, 'rb') as f:
+                emcee_sampler = pickle.load(f)
+
+        fig = plot_mcmc_diagnostic(emcee_sampler.chain)
+        fig.savefig(plot_file, dpi=250)
+        plt.close(fig)
+
+
+def main(run_name, pool, overwrite=False):
+    run_path = join(HQ_CACHE_PATH, run_name)
+    with open(join(run_path, 'config.yml'), 'r') as f:
         config = yaml.load(f.read())
 
-    # filename of sqlite database
-    database_file = config['database_file']
+    emcee_cache_path = join(HQ_CACHE_PATH, run_name, 'emcee')
+    os.makedirs(emcee_cache_path, exist_ok=True)
 
-    db_path = path.join(TWOFACE_CACHE_PATH, database_file)
-    if not os.path.exists(db_path):
-        raise IOError("sqlite database not found at '{0}'\n Did you run "
-                      "scripts/initdb.py yet for that database?"
-                      .format(db_path))
+    # Get paths to files needed to run
+    params = config_to_jokerparams(config)
+    joker = TheJoker(params)
 
-    logger.debug("Connecting to sqlite database at '{0}'".format(db_path))
-    Session, engine = db_connect(database_path=db_path,
-                                 ensure_db_exists=False)
-    session = Session()
+    # Load the analyzed joker samplings file, only keep unimodal:
+    joker_metadata = Table.read(join(HQ_CACHE_PATH, run_name,
+                                     '{0}-metadata.fits'.format(run_name)))
+    unimodal_tbl = joker_metadata[joker_metadata['unimodal']]
 
-    run = get_run(config, session, overwrite=False)
+    # Load the data:
+    allstar, allvisit = config_to_alldata(config)
+    allstar = allstar[np.isin(allstar['APOGEE_ID'], unimodal_tbl['APOGEE_ID'])]
+    allvisit = allvisit[np.isin(allvisit['APOGEE_ID'], allstar['APOGEE_ID'])]
 
-    # The file with cached posterior samples:
-    results_filename = path.join(TWOFACE_CACHE_PATH,
-                                 "{0}.hdf5".format(run.name))
-    if not path.exists(results_filename):
-        raise IOError("Posterior samples result file {0} doesn't exist! Are "
-                      "you sure you ran `run_apogee.py`?"
-                      .format(results_filename))
+    tasks = []
+    logger.debug("Loading data and preparing tasks...")
+    for row in tqdm(unimodal_tbl):
+        visits = allvisit[allvisit['APOGEE_ID'] == row['APOGEE_ID']]
+        data = get_rvdata(visits)
 
-    # The file to write the MCMC samples to:
-    mcmc_filename = path.join(TWOFACE_CACHE_PATH,
-                              "{0}-mcmc.hdf5".format(run.name))
+        # Load the MAP sample:
+        vals = dict([(k[4:], row[k])
+                     for k in row.colnames
+                     if k.startswith('MAP_') and not k.startswith('MAP_ln')])
 
-    if not path.exists(mcmc_filename): # ensure it exists
-        with h5py.File(mcmc_filename, 'w') as f:
-            pass
+        MAP_sample = JokerSamples(**vals)
+        MAP_sample.t0 = data.t0
 
-    # Create TheJoker sampler instance with the specified random seed and pool
-    rnd = np.random.RandomState(seed=seed)
-    logger.debug("Creating TheJoker instance with {0}, {1}".format(rnd, pool))
-    params = run.get_joker_params()
+        tasks.append([joker, row['APOGEE_ID'], data, config, MAP_sample,
+                      emcee_cache_path, overwrite])
 
-    # HACK: test
-    params.jitter = (8.5, 0.9)
-    joker = TheJoker(params, random_state=rnd)
+    logger.info('Done preparing tasks: {0} stars in process queue'
+                .format(len(tasks)))
 
-    # Get all stars in this JokerRun that "need mcmc" that are not in the MCMC
-    # cache file already
-    with h5py.File(mcmc_filename, 'r') as f:
-        done_ids = list(f.keys())
-
-    base_query = session.query(AllStar).join(StarResult, JokerRun, Status)\
-                                       .filter(JokerRun.name == run.name)\
-                                       .filter(Status.id == 2)
-    star_query = base_query.filter(~AllStar.apogee_id.in_(done_ids))
-
-    n_stars = star_query.count()
-    logger.info("{0} stars left to process for run more samples '{1}'"
-                .format(n_stars, run.name))
-
-    cache_path = path.join(TWOFACE_CACHE_PATH, 'emcee')
-    logger.debug('Will write emcee chains to {0}'.format(cache_path))
-    os.makedirs(cache_path, exist_ok=True)
-
-    tasks = [(cache_path, results_filename, star.apogee_id,
-              star.apogeervdata(), joker)
-             for star in star_query.order_by(AllStar.apogee_id).all()]
-    session.close()
-
-    for r in pool.map(emcee_worker, tasks):
+    for r in tqdm(pool.starmap(worker, tasks), total=len(tasks)):
         pass
 
-    pool.close()
 
-    # Now go through all of the output files and collect them!
-    with open(path.join(cache_path, 'model.pickle'), 'rb') as f:
-        model = pickle.load(f)
-
-    with h5py.File(mcmc_filename) as f:
-        for star in base_query.all():
-            if star.apogee_id in f:
-                logger.debug('Star {0} already in MCMC cache file'
-                             .format(star.apogee_id))
-                continue
-
-            tmp_file = path.join(cache_path, '{0}.npy'.format(star.apogee_id))
-            chain = np.load(tmp_file)
-            n_walkers, n_steps, n_pars = chain.shape
-
-            g = f.create_group(star.apogee_id)
-
-            logger.debug('Adding star {0} to MCMC cache'.format(star.apogee_id))
-            try:
-                g2 = g.create_group('chain-stats')
-
-                # compute running median, MAD, mean, stddev
-                all_med = []
-                all_mad = []
-                all_mean = []
-                all_std = []
-                for k in range(chain.shape[-1]):
-                    all_med.append(np.median(chain[..., k], axis=0))
-                    all_mad.append(median_absolute_deviation(chain[..., k],
-                                                             axis=0))
-                    all_mean.append(np.mean(chain[..., k], axis=0))
-                    all_std.append(np.std(chain[..., k], axis=0))
-
-                all_med = np.vstack(all_med).T
-                all_mad = np.vstack(all_mad).T
-                all_mean = np.vstack(all_mean).T
-                all_std = np.vstack(all_std).T
-                Rs = gelman_rubin(chain[:, n_steps//2:])
-
-                g2.create_dataset(name='median', data=all_med)
-                g2.create_dataset(name='MAD', data=all_mad)
-                g2.create_dataset(name='mean', data=all_mean)
-                g2.create_dataset(name='std', data=all_std)
-                g2.create_dataset(name='gelman_rubin', data=Rs)
-
-                # take the last sample, downsample
-                end_pos = chain[:run.requested_samples_per_star, -1]
-                samples = model.unpack_samples_mcmc(end_pos)
-                samples.to_hdf5(g)
-
-            except Exception as e:
-                raise
-
-            finally:
-                del g
-
-
-if __name__ == "__main__":
-    from argparse import ArgumentParser
-    import logging
-
+if __name__ == '__main__':
     # Define parser object
-    parser = ArgumentParser(description="")
+    parser = get_parser(description='Run The Joker on APOGEE data',
+                        loggers=[logger, joker_logger])
 
-    vq_group = parser.add_mutually_exclusive_group()
-    vq_group.add_argument('-v', '--verbose', action='count', default=0,
-                          dest='verbosity')
-    vq_group.add_argument('-q', '--quiet', action='count', default=0,
-                          dest='quietness')
-
-    parser.add_argument("-s", "--seed", dest="seed", default=None, type=int,
-                        help="Random number seed")
+    parser.add_argument("--name", dest="run_name", required=True,
+                        type=str, help="The name of the run.")
 
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--procs", dest="n_procs", default=1,
@@ -187,35 +131,18 @@ if __name__ == "__main__":
     group.add_argument("--mpi", dest="mpi", default=False,
                        action="store_true", help="Run with MPI.")
 
-    parser.add_argument("-c", "--config", dest="config_file", required=True,
-                        type=str, help="Path to config file that specifies the "
-                                       "parameters for this JokerRun.")
+    parser.add_argument("-o", "--overwrite", dest="overwrite", default=False,
+                        action="store_true",
+                        help="Overwrite any existing samplings")
 
     args = parser.parse_args()
 
-    loggers = [joker_logger, logger]
+    if args.mpi:
+        Pool = MPIAsyncPool
+    else:
+        Pool = SerialPool
 
-    # Set logger level based on verbose flags
-    if args.verbosity != 0:
-        if args.verbosity == 1:
-            logger.setLevel(logging.DEBUG)
-        else: # anything >= 2
-            logger.setLevel(1)
-            joker_logger.setLevel(1)
+    with Pool() as pool:
+        main(run_name=args.run_name, pool=pool, overwrite=args.overwrite)
 
-    elif args.quietness != 0:
-        if args.quietness == 1:
-            logger.setLevel(logging.WARNING)
-            joker_logger.setLevel(logging.WARNING)
-        else: # anything >= 2
-            logger.setLevel(logging.ERROR)
-            joker_logger.setLevel(logging.ERROR)
-
-    else: # default
-        logger.setLevel(logging.INFO)
-        joker_logger.setLevel(logging.INFO)
-
-    pool_kwargs = dict(mpi=args.mpi, processes=args.n_procs)
-    pool = choose_pool(**pool_kwargs)
-
-    main(config_file=args.config_file, pool=pool, seed=args.seed)
+    sys.exit(0)
