@@ -64,6 +64,9 @@ def main(run_name):
                 rows['MAP_'+k].append(MAP_sample[k][0])
             rows['t0'].append(MAP_sample.t0)
 
+            rows['MAP_ln_likelihood'].append(ln_l[MAP_idx])
+            rows['MAP_ln_prior'].append(ln_p[MAP_idx])
+
             if len(samples) == n_requested_samples:
                 rows['joker_completed'].append(True)
             else:
@@ -74,18 +77,12 @@ def main(run_name):
             else:
                 rows['unimodal'].append(False)
 
-            rows['MAP_ln_likelihood'].append(ln_l[MAP_idx])
-            rows['MAP_ln_prior'].append(ln_p[MAP_idx])
-
     for k in rows.keys():
         if isinstance(rows[k][0], (Time, u.Quantity)):
             rows[k] = rows[k][0].__class__(rows[k])
 
     tbl = Table(rows)
     tbl.write(metadata_path, overwrite=True)
-
-    # TODO: read the metadata file with
-    # Table.read(metadata_path, astropy_native=True)
 
 
 if __name__ == '__main__':
