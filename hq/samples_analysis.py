@@ -3,7 +3,8 @@ import astropy.units as u
 import numpy as np
 from thejoker.sampler.mcmc import TheJokerMCMCModel
 
-__all__ = ['unimodal_P', 'max_likelihood_sample', 'MAP_sample', 'chisq']
+__all__ = ['unimodal_P', 'max_likelihood_sample', 'MAP_sample', 'chisq',
+           'max_phase_gap', 'phase_coverage', 'periods_spanned']
 
 
 def unimodal_P(samples, data):
@@ -108,3 +109,15 @@ def phase_coverage(sample, data, n_bins=10):
     H, _ = np.histogram(data.phase(sample['P']),
                         bins=np.linspace(0, 1, n_bins+1))
     return (H > 0).sum() / n_bins
+
+
+def periods_spanned(sample, data):
+    """Compute the number of periods spanned by the data
+
+    Parameters
+    ----------
+    sample : `~thejoker.JokerSamples`
+    data : `~thejoker.RVData`
+    """
+    T = data.t.jd.max() - data.t.jd.min()
+    return T / sample['P'].to_value(u.day)

@@ -17,7 +17,8 @@ from hq.data import get_rvdata
 from hq.log import logger
 from hq.config import (HQ_CACHE_PATH, config_to_alldata)
 from hq.script_helpers import get_parser
-from hq.samples_analysis import unimodal_P, max_phase_gap, phase_coverage
+from hq.samples_analysis import (unimodal_P, max_phase_gap, phase_coverage,
+                                 periods_spanned)
 
 
 def main(run_name):
@@ -79,6 +80,7 @@ def main(run_name):
 
             rows['max_phase_gap'] = max_phase_gap(MAP_sample[0], data)
             rows['phase_coverage'] = phase_coverage(MAP_sample[0], data)
+            rows['periods_spanned'] = periods_spanned(MAP_sample[0], data)
 
     for k in rows.keys():
         if isinstance(rows[k][0], (Time, u.Quantity)):
