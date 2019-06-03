@@ -1,8 +1,8 @@
 #!/bin/bash
-#SBATCH -J apogee-load
-#SBATCH -o apogee-load.o%j
-#SBATCH -e apogee-load.e%j
-#SBATCH -n 1
+#SBATCH -J apogee-emcee
+#SBATCH -o apogee-emcee.o%j
+#SBATCH -e apogee-emcee.e%j
+#SBATCH -n 720
 #SBATCH -t 12:00:00
 #SBATCH -p cca
 
@@ -16,6 +16,6 @@ conda activate hq
 
 date
 
-python db_init.py --allstar=../data/allStar-t9-l31c-58247.fits --allvisit=../data/allVisit-t9-l31c-58247.fits -v
+python run_continue_mcmc.py --name dr16-beta-snr-jitter -v
 
 date
