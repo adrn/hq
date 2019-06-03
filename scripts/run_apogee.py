@@ -73,12 +73,6 @@ def callback(future):
                                                            len(res['samples'])))
 
 
-def get_new_err(visits, a, b, s):
-    err = visits['VRELERR']
-    snr = visits['SNR']
-    return np.sqrt(s**2 + err**2 + a*snr**b)
-
-
 def main(run_name, pool, overwrite=False, seed=None):
     run_path = join(HQ_CACHE_PATH, run_name)
     with open(join(run_path, 'config.yml'), 'r') as f:
@@ -123,10 +117,6 @@ def main(run_name, pool, overwrite=False, seed=None):
             assert star['APOGEE_ID'] not in results_f or overwrite
 
             visits = allvisit[allvisit['APOGEE_ID'] == star['APOGEE_ID']]
-
-            # HACK: see Calibrate-visit-rv-err.ipynb
-            visits['VRELERR'] = get_new_err(visits,
-                                            a=145.869, b=-2.8215, s=0.168)
             data = get_rvdata(visits)
 
             tasks.append([joker, star['APOGEE_ID'], data, config, results_path])
