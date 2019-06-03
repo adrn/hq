@@ -81,3 +81,30 @@ def MAP_sample(data, samples, joker_params, return_index=False):
         return samples[idx], idx
     else:
         return samples[np.argmax(ln_ps)]
+
+
+def max_phase_gap(sample, data):
+    """Based on the MPG statistic defined here:
+    https://gea.esac.esa.int/archive/documentation/GDR2/Data_analysis/chap_cu7var/sssec_cu7var_validation_sos_sl/ssec_cu7var_sos_sl_qa.html
+
+    Parameters
+    ----------
+    sample : `~thejoker.JokerSamples`
+    data : `~thejoker.RVData`
+    """
+    phase = np.sort(data.phase(sample['P']))
+    return (phase[1:] - phase[:-1]).max()
+
+
+def phase_coverage(sample, data, n_bins=10):
+    """Based on the PC statistic defined here:
+    https://gea.esac.esa.int/archive/documentation/GDR2/Data_analysis/chap_cu7var/sssec_cu7var_validation_sos_sl/ssec_cu7var_sos_sl_qa.html
+
+    Parameters
+    ----------
+    sample : `~thejoker.JokerSamples`
+    data : `~thejoker.RVData`
+    """
+    H, _ = np.histogram(data.phase(sample['P']),
+                        bins=np.linspace(0, 1, n_bins+1))
+    return (H > 0).sum() / n_bins
