@@ -11,9 +11,14 @@ def get_new_err(visits, a, b, s):
     return np.sqrt(s**2 + err**2 + a*snr**b)
 
 
-def get_rvdata(visits, apply_error_calibration=True):
-    t = Time(visits['JD'], format='jd', scale='utc')
-    rv = visits['VHELIO'] * u.km/u.s
+def get_rvdata(visits, apply_error_calibration=True, float64=False):
+    if float64:
+        dtype = 'f8'
+    else:
+        dtype = 'f4'
+
+    t = Time(visits['JD'].astype(dtype), format='jd', scale='utc')
+    rv = visits['VHELIO'].astype(dtype) * u.km/u.s
 
     if apply_error_calibration:
         # see notebook: Calibrate-visit-rv-err.ipynb
@@ -22,4 +27,4 @@ def get_rvdata(visits, apply_error_calibration=True):
     else:
         rv_err = visits['VRELERR']
 
-    return RVData(t=t, rv=rv, stddev=rv_err * u.km/u.s)
+    return RVData(t=t, rv=rv, stddev=rv_err.astype(dtype) * u.km/u.s)
