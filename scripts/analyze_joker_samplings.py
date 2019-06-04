@@ -12,6 +12,8 @@ import numpy as np
 from tqdm import tqdm
 import yaml
 from thejoker import JokerSamples, TheJoker
+from schwimmbad import SerialPool
+from schwimmbad.mpi import MPIAsyncPool
 
 # Project
 from hq.data import get_rvdata
@@ -22,7 +24,52 @@ from hq.samples_analysis import (unimodal_P, max_phase_gap, phase_coverage,
                                  periods_spanned, optimize_mode)
 
 
-def main(run_name):
+def worker(apogee_id, data, joker, poly_trend, n_requested_samples,
+           results_path):
+    with h5py.File(results_path, 'r') as results_f:
+        # Load samples from The Joker and probabilities
+        samples = JokerSamples.from_hdf5(results_f[apogee_id],
+                                         poly_trend=poly_trend)
+        ln_p = results_f[apogee_id]['ln_prior'][:]
+        ln_l = results_f[apogee_id]['ln_likelihood'][:]
+
+    row = dict()
+    row['APOGEE_ID'] = apogee_id
+    row['n_visits'] = len(data)
+
+    MAP_idx = (ln_p + ln_l).argmax()
+    MAP_sample = samples[MAP_idx:MAP_idx+1]
+    for k in MAP_sample.keys():
+        row['MAP_'+k] = MAP_sample[k][0]
+    row['t0_bmjd'] = MAP_sample.t0.tcb.mjd
+
+    row['MAP_ln_likelihood'] = ln_l[MAP_idx]
+    row['MAP_ln_prior'] = ln_p[MAP_idx]
+
+    if len(samples) == n_requested_samples:
+        row['joker_completed'] = True
+    else:
+        row['joker_completed'] = False
+
+    if unimodal_P(samples, data):
+        row['unimodal'] = True
+    else:
+        row['unimodal'] = False
+
+    row['max_phase_gap'] = max_phase_gap(MAP_sample[0], data)
+    row['phase_coverage'] = phase_coverage(MAP_sample[0], data)
+    row['periods_spanned'] = periods_spanned(MAP_sample[0], data)
+
+    units = dict()
+    for k in row:
+        if hasattr(row[k], 'unit'):
+            units[k] = row[k].unit
+            row[k] = row[k].value
+
+    return row, units
+
+
+def main(run_name, pool):
     run_path = join(HQ_CACHE_PATH, run_name)
     with open(join(run_path, 'config.yml'), 'r') as f:
         config = yaml.load(f.read())
@@ -39,6 +86,8 @@ def main(run_name):
 
     # Load the data for this run:
     allstar, allvisit = config_to_alldata(config)
+    allstar = allstar[:16] # HACK: for testing
+    allvisit = allvisit[np.isin(allvisit['APOGEE_ID'], allstar['APOGEE_ID'])]
 
     n_requested_samples = config['requested_samples_per_star']
     poly_trend = config['hyperparams']['poly_trend']
@@ -47,58 +96,25 @@ def main(run_name):
         raise IOError("Results file {0} does not exist! Did you run "
                       "run_apogee.py?".format(results_path))
 
-    rows = defaultdict(list)
+    tasks = []
     with h5py.File(results_path, 'r') as results_f:
-        for apogee_id in tqdm(results_f.keys(),
-                              total=len(list(results_f.keys()))):
-            # Load samples from The Joker and probabilities
-            samples = JokerSamples.from_hdf5(results_f[apogee_id],
-                                             poly_trend=poly_trend)
-            ln_p = results_f[apogee_id]['ln_prior'][:]
-            ln_l = results_f[apogee_id]['ln_likelihood'][:]
-
+        for apogee_id in results_f.keys():
             # Load data
             visits = allvisit[allvisit['APOGEE_ID'] == apogee_id]
             data = get_rvdata(visits)
 
-            rows['APOGEE_ID'].append(apogee_id)
-            rows['n_visits'].append(len(data))
+            tasks.append([apogee_id, data, joker, poly_trend,
+                          n_requested_samples, results_f])
 
-            MAP_idx = (ln_p + ln_l).argmax()
-            MAP_sample = samples[MAP_idx:MAP_idx+1]
-            for k in MAP_sample.keys():
-                rows['MAP_'+k].append(MAP_sample[k][0])
-            rows['t0'].append(MAP_sample.t0)
-
-            rows['MAP_ln_likelihood'].append(ln_l[MAP_idx])
-            rows['MAP_ln_prior'].append(ln_p[MAP_idx])
-
-            if len(samples) == n_requested_samples:
-                rows['joker_completed'].append(True)
-            else:
-                rows['joker_completed'].append(False)
-
-            if unimodal_P(samples, data):
-                rows['unimodal'].append(True)
-            else:
-                rows['unimodal'].append(False)
-
-            rows['max_phase_gap'].append(max_phase_gap(MAP_sample[0], data))
-            rows['phase_coverage'].append(phase_coverage(MAP_sample[0], data))
-            rows['periods_spanned'].append(periods_spanned(MAP_sample[0], data))
-
-            # res = optimize_mode(MAP_sample[0], data, joker,
-            #                     return_logprobs=True)
-            # if res is None:
-            #     rows['mode_max_ln_likelihood'].append(np.nan)
-            # else:
-            #     rows['mode_max_ln_likelihood'].append(res[2])
-
-    for k in rows.keys():
-        if isinstance(rows[k][0], (Time, u.Quantity)):
-            rows[k] = rows[k][0].__class__(rows[k])
+    rows = []
+    for r, units in tqdm(pool.starmap(worker, tasks), total=len(tasks)):
+        rows.append(r)
 
     tbl = Table(rows)
+
+    for k, unit in units.items():
+        tbl[k] = tbl[k] * unit
+
     tbl.write(metadata_path, overwrite=True)
 
 
@@ -110,12 +126,24 @@ if __name__ == '__main__':
     parser.add_argument("--name", dest="run_name", required=True,
                         type=str, help="The name of the run.")
 
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("--procs", dest="n_procs", default=1,
+                       type=int, help="Number of processes.")
+    group.add_argument("--mpi", dest="mpi", default=False,
+                       action="store_true", help="Run with MPI.")
+
     parser.add_argument("-o", "--overwrite", dest="overwrite", default=False,
                         action="store_true",
                         help="Overwrite any existing samplings")
 
     args = parser.parse_args()
 
-    main(run_name=args.run_name)
+    if args.mpi:
+        Pool = MPIAsyncPool
+    else:
+        Pool = SerialPool
+
+    with Pool() as pool:
+        main(run_name=args.run_name, pool=pool)
 
     sys.exit(0)
