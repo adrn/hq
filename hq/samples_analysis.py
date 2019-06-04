@@ -132,7 +132,7 @@ def optimize_mode(init_sample, data, joker, minimize_kwargs=None,
 
     """
     model = TheJokerMCMCModel(joker.params, data)
-    init_p = model.pack_samples(MAP_sample)
+    init_p = model.pack_samples(init_sample)
 
     if minimize_kwargs is None:
         minimize_kwargs = dict()
