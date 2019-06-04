@@ -96,6 +96,7 @@ def max_phase_gap(sample, data):
     data : `~thejoker.RVData`
     """
     phase = np.sort(data.phase(sample['P']))
+    phase = np.concatenate((phase, phase))
     return (phase[1:] - phase[:-1]).max()
 
 
