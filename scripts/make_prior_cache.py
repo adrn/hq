@@ -2,7 +2,6 @@
 from os import path
 
 # Third-party
-import astropy.units as u
 import yaml
 from thejoker import TheJoker
 
