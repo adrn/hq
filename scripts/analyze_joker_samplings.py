@@ -87,12 +87,12 @@ def main(run_name):
             rows['phase_coverage'].append(phase_coverage(MAP_sample[0], data))
             rows['periods_spanned'].append(periods_spanned(MAP_sample[0], data))
 
-            res = optimize_mode(MAP_sample[0], data, joker,
-                                return_logprobs=True)
-            if res is None:
-                rows['mode_max_ln_likelihood'].append(np.nan)
-            else:
-                rows['mode_max_ln_likelihood'].append(res[2])
+            # res = optimize_mode(MAP_sample[0], data, joker,
+            #                     return_logprobs=True)
+            # if res is None:
+            #     rows['mode_max_ln_likelihood'].append(np.nan)
+            # else:
+            #     rows['mode_max_ln_likelihood'].append(res[2])
 
     for k in rows.keys():
         if isinstance(rows[k][0], (Time, u.Quantity)):
