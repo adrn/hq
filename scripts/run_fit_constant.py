@@ -74,7 +74,6 @@ def main(run_name, pool, overwrite=False, seed=None):
 
     # Get data files out of config file:
     allstar, allvisit = config_to_alldata(config)
-    allstar = allstar[:16] # HACK: for testing
     allvisit = allvisit[np.isin(allvisit['APOGEE_ID'], allstar['APOGEE_ID'])]
 
     tasks = []
