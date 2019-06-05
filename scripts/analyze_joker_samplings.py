@@ -60,15 +60,14 @@ def worker(apogee_id, data, joker, poly_trend, n_requested_samples,
     row['max_phase_gap'] = max_phase_gap(MAP_sample[0], data)
     row['phase_coverage'] = phase_coverage(MAP_sample[0], data)
     row['periods_spanned'] = periods_spanned(MAP_sample[0], data)
-    
+
     lls = []
     for i, orbit in enumerate(samples.orbits):
-        lls.append(ln_normal(orbit.radial_velocity(data.t).to_value(u.km/u.s), 
-                             data.rv.to_value(u.km/u.s), 
+        lls.append(ln_normal(orbit.radial_velocity(data.t).to_value(u.km/u.s),
+                             data.rv.to_value(u.km/u.s),
                              data.stddev.to_value(u.km/u.s)**2).sum())
     row['max_unmarginalized_ln_likelihood'] = max(lls)
     
-
     units = dict()
     for k in row:
         if hasattr(row[k], 'unit'):
