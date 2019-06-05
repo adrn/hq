@@ -6,7 +6,7 @@ from thejoker.sampler.mcmc import TheJokerMCMCModel
 
 __all__ = ['unimodal_P', 'max_likelihood_sample', 'MAP_sample', 'chisq',
            'max_phase_gap', 'phase_coverage', 'periods_spanned',
-           'optimize_mode']
+           'phase_coverage_per_period', 'optimize_mode']
 
 
 def unimodal_P(samples, data):
@@ -124,6 +124,20 @@ def periods_spanned(sample, data):
     """
     T = data.t.jd.max() - data.t.jd.min()
     return T / sample['P'].to_value(u.day)
+
+
+def phase_coverage_per_period(sample, data):
+    """The maximum number of data points within a period.
+
+    Parameters
+    ----------
+    sample : `~thejoker.JokerSamples`
+    data : `~thejoker.RVData`
+    """
+    dt = (data.t - data.t0).to(u.day)
+    phase = dt / sample['P']
+    H, _ = np.histogram(phase, bins=np.arange(0, phase.max()+1, 1))
+    return H.max()
 
 
 def optimize_mode(init_sample, data, joker, minimize_kwargs=None,
