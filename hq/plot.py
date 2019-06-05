@@ -21,7 +21,7 @@ def plot_mcmc_diagnostic(chain):
 
     names = [r'$\ln P$', r'$\sqrt{K}\,\cos M_0$', r'$\sqrt{K}\,\sin M_0$',
              r'$\sqrt{e}\,\cos \omega$', r'$\sqrt{e}\,\sin \omega$',
-             r'$\ln s^2$', '$v_0$']
+             '$v_0$']
 
     ndim = chain.shape[-1]
     assert ndim == len(names)

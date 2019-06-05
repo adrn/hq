@@ -2,9 +2,10 @@
 #SBATCH -J apogee
 #SBATCH -o apogee.o%j
 #SBATCH -e apogee.e%j
-#SBATCH -N 8
+#SBATCH -n 720
 #SBATCH -t 72:00:00
 #SBATCH -p cca
+#SBATCH --constraint=skylake
 
 source ~/.bash_profile
 
@@ -16,6 +17,8 @@ conda activate hq
 
 date
 
-mpirun python run_apogee.py -v -c ../run_config/apogee.yml --mpi --overwrite
+mpirun -n $SLURM_NTASKS python -m mpi4py.futures run_apogee.py --name dr16-beta-snr-jitter -v --mpi
 
 date
+
+# --constraint=skylake

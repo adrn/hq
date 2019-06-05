@@ -119,4 +119,7 @@ def config_to_alldata(config):
     star_mask2 = np.isin(allstar_tbl['APOGEE_ID'], v_apogee_ids2)
     allstar_tbl = allstar_tbl[star_mask2]
 
+    _, idx = np.unique(allstar_tbl['APOGEE_ID'], return_index=True)
+    allstar_tbl = allstar_tbl[idx]
+
     return allstar_tbl, allvisit_tbl

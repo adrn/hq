@@ -1,179 +1,93 @@
-"""
-Take 10,000 APOGEE stars (1/10 of the full sample) and re-generate visit
-velocities assuming that there are no true orbital RV variations.
-"""
-
 # Standard library
-from os.path import abspath, expanduser, join
-import os
-import time
+from os.path import join, exists
+import sys
 
 # Third-party
 import h5py
 import numpy as np
-from schwimmbad import choose_pool
 from thejoker.log import log as joker_logger
 from thejoker.sampler import TheJoker
+from thejoker.data import RVData
+from tqdm import tqdm
 import yaml
+from schwimmbad import SerialPool
+from schwimmbad.mpi import MPIAsyncPool
 
 # Project
-from twoface.log import log as logger
-from twoface.data import APOGEERVData
-from twoface.db import db_connect, get_run
-from twoface.db import JokerRun, AllStar, StarResult, Status
-from twoface.config import TWOFACE_CACHE_PATH
+from hq.data import get_rvdata
+from hq.log import logger
+from hq.config import (HQ_CACHE_PATH, config_to_jokerparams,
+                       config_to_prior_cache, config_to_alldata)
+from hq.script_helpers import get_parser
 
-# MAGIC NUMBER: number of control stars to test
-NCONTROL = 16384
+from run_apogee import worker, callback
 
 
-def main(config_file, pool, seed, overwrite=False):
-    # Default seed:
-    if seed is None:
-        seed = 42
-
-    config_file = abspath(expanduser(config_file))
-
-    # parse config file
-    with open(config_file, 'r') as f:
+def main(run_name, pool, overwrite=False, seed=None):
+    run_path = join(HQ_CACHE_PATH, run_name)
+    with open(join(run_path, 'config.yml'), 'r') as f:
         config = yaml.load(f.read())
-        config['config_file'] = config_file
 
-    # filename of sqlite database
-    if 'database_file' not in config:
-        database_file = None
+    # Get paths to files needed to run
+    params = config_to_jokerparams(config)
+    prior_cache_path = config_to_prior_cache(config, params)
+    results_path = join(HQ_CACHE_PATH, run_name,
+                        'thejoker-control-{0}.hdf5'.format(run_name))
 
-    else:
-        database_file = config['database_file']
+    if not exists(prior_cache_path):
+        raise IOError("Prior cache file '{0}' does not exist! Did you run "
+                      "make_prior_cache.py?")
 
-    db_path = join(TWOFACE_CACHE_PATH, database_file)
-    if not os.path.exists(db_path):
-        raise IOError("sqlite database not found at '{0}'\n Did you run "
-                      "scripts/initdb.py yet for that database?"
-                      .format(db_path))
+    with h5py.File(results_path, 'a') as f: # ensure the file exists
+        pass
 
-    logger.debug("Connecting to sqlite database at '{0}'".format(db_path))
-    Session, engine = db_connect(database_path=db_path,
-                                 ensure_db_exists=False)
-    session = Session()
+    # Get data files out of config file:
+    allstar, allvisit = config_to_alldata(config)
 
-    # Retrieve or create a JokerRun instance
-    run = get_run(config, session, overwrite=False) # never overwrite
-    params = run.get_joker_params()
+    # HACK: MAGIC NUMBER
+    # Reduce the sample size:
+    n_control = len(allstar) // 10
+    idx = np.random.choice(len(allstar), size=n_control, replace=False)
+    allstar = allstar[idx]
+    allvisit = allvisit[np.isin(allvisit['APOGEE_ID'], allstar['APOGEE_ID'])]
 
     # Create TheJoker sampler instance with the specified random seed and pool
     rnd = np.random.RandomState(seed=seed)
-    logger.debug("Creating TheJoker instance with {0}, {1}".format(rnd, pool))
-    joker = TheJoker(params, random_state=rnd, pool=pool)
 
-    # Create a file to cache the resulting posterior samples
-    results_filename = join(TWOFACE_CACHE_PATH,
-                            "{0}-control.hdf5".format(run.name))
+    logger.debug("Creating TheJoker instance with {0}".format(rnd))
+    joker = TheJoker(params, random_state=rnd, n_batches=8) # HACK: MAGIC NUMBER
+    logger.debug("Processing pool has size = {0}".format(pool.size))
+    logger.debug("{0} stars left to process for run '{1}'"
+                 .format(len(allstar), run_name))
 
-    # Ensure that the results file exists - this is where we cache samples that
-    # pass the rejection sampling step
-    if not os.path.exists(results_filename):
-        with h5py.File(results_filename, 'w') as f:
-            pass
+    tasks = []
+    logger.debug("Loading data and preparing tasks...")
+    for star in tqdm(allstar):
+        visits = allvisit[allvisit['APOGEE_ID'] == star['APOGEE_ID']]
+        data = get_rvdata(visits)
 
-    with h5py.File(results_filename, 'r') as f:
-        done_apogee_ids = list(f.keys())
+        # Overwrite the data with a null signal!
+        new_rv = rnd.normal(np.mean(data.rv).value,
+                            data.stddev.value) * data.rv.unit
+        new_data = RVData(rv=new_rv, t=data.t, stddev=data.stddev)
 
-    # Create a cache of prior samples (if it doesn't exist) and store the
-    # filename in the database.
-    if not os.path.exists(run.prior_samples_file):
-        raise IOError("Prior cache must already exist.")
+        tasks.append([joker, star['APOGEE_ID'], new_data, config, results_path])
 
-    # Get random IDs
-    star_ids = session.query(AllStar.apogee_id)\
-                      .join(StarResult, JokerRun, Status)\
-                      .filter(Status.id > 0).distinct().all()
-    star_ids = np.array([x[0] for x in star_ids])
-    star_ids = rnd.choice(star_ids, size=NCONTROL, replace=False)
-    star_ids = star_ids[~np.isin(star_ids, done_apogee_ids)]
+    logger.info('Done preparing tasks: {0} stars in process queue'
+                .format(len(tasks)))
 
-    n_stars = len(star_ids)
-    logger.info("{0} stars left to process for run '{1}'; {2} already done."
-                .format(n_stars, run.name, len(done_apogee_ids)))
-
-    # --------------------------------------------------------------------------
-    # Here is where we do the actual processing of the data for each star. We
-    # loop through all stars that still need processing and iteratively
-    # rejection sample with larger and larger prior sample batch sizes. We do
-    # this for efficiency, but the argument for this is somewhat made up...
-
-    for apid in star_ids:
-        star = AllStar.get_apogee_id(session, apid)
-
-        logger.log(1, "Starting star {0}".format(star.apogee_id))
-        t0 = time.time()
-
-        orig_data = star.apogeervdata()
-
-        # HACK: this assumes we're sampling over the excess variance parameter
-        # Generate new data with no RV orbital variations
-        y = rnd.normal(params.jitter[0], params.jitter[1])
-        s = np.exp(0.5 * y) * params._jitter_unit
-        std = np.sqrt(s**2 + orig_data.stddev**2).to(orig_data.rv.unit).value
-        new_rv = rnd.normal(np.mean(orig_data.rv).value, std)
-        data = APOGEERVData(t=orig_data.t, rv=new_rv * orig_data.rv.unit,
-                            stddev=orig_data.stddev)
-
-        logger.log(1, "\t visits loaded ({:.2f} seconds)"
-                   .format(time.time()-t0))
-        try:
-            samples, ln_prior = joker.iterative_rejection_sample(
-                data=data, n_requested_samples=run.requested_samples_per_star,
-                prior_cache_file=run.prior_samples_file,
-                n_prior_samples=run.max_prior_samples, return_logprobs=True)
-
-        except Exception as e:
-            logger.warning("\t Failed sampling for star {0} \n Error: {1}"
-                           .format(star.apogee_id, str(e)))
-            continue
-
-        logger.debug("\t done sampling ({:.2f} seconds)".format(time.time()-t0))
-
-        # For now, it's sufficient to write the run results to an HDF5 file
-        n = run.requested_samples_per_star
-        samples = samples[:n]
-
-        # Write the samples that pass to the results file
-        with h5py.File(results_filename, 'r+') as f:
-            if star.apogee_id in f:
-                del f[star.apogee_id]
-
-            # HACK: this will overwrite the past samples!
-            g = f.create_group(star.apogee_id)
-            samples.to_hdf5(g)
-
-        logger.debug("\t saved samples ({:.2f} seconds)".format(time.time()-t0))
-
-    pool.close()
-    session.close()
+    for r in tqdm(pool.starmap(worker, tasks, callback=callback),
+                  total=len(tasks)):
+        pass
 
 
-if __name__ == "__main__":
-    from argparse import ArgumentParser
-    import logging
-
+if __name__ == '__main__':
     # Define parser object
-    parser = ArgumentParser(description="")
+    parser = get_parser(description='Run The Joker on APOGEE data',
+                        loggers=[logger, joker_logger])
 
-    vq_group = parser.add_mutually_exclusive_group()
-    vq_group.add_argument('-v', '--verbose', action='count', default=0,
-                          dest='verbosity')
-    vq_group.add_argument('-q', '--quiet', action='count', default=0,
-                          dest='quietness')
-
-    oc_group = parser.add_mutually_exclusive_group()
-    oc_group.add_argument("--overwrite", dest="overwrite", default=False,
-                          action="store_true",
-                          help="Overwrite any existing results for this "
-                               "JokerRun.")
-
-    parser.add_argument("-s", "--seed", dest="seed", default=None, type=int,
-                        help="Random number seed")
+    parser.add_argument("--name", dest="run_name", required=True,
+                        type=str, help="The name of the run.")
 
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--procs", dest="n_procs", default=1,
@@ -181,36 +95,22 @@ if __name__ == "__main__":
     group.add_argument("--mpi", dest="mpi", default=False,
                        action="store_true", help="Run with MPI.")
 
-    parser.add_argument("-c", "--config", dest="config_file", required=True,
-                        type=str, help="Path to config file that specifies the "
-                                       "parameters for this JokerRun.")
+    parser.add_argument("-s", "--seed", dest="seed", default=42, type=int,
+                        help="Random number seed")
+
+    parser.add_argument("-o", "--overwrite", dest="overwrite", default=False,
+                        action="store_true",
+                        help="Overwrite any existing samplings")
 
     args = parser.parse_args()
 
-    loggers = [joker_logger, logger]
+    if args.mpi:
+        Pool = MPIAsyncPool
+    else:
+        Pool = SerialPool
 
-    # Set logger level based on verbose flags
-    if args.verbosity != 0:
-        if args.verbosity == 1:
-            logger.setLevel(logging.DEBUG)
-        else: # anything >= 2
-            logger.setLevel(1)
-            joker_logger.setLevel(1)
+    with Pool() as pool:
+        main(run_name=args.run_name, pool=pool, overwrite=args.overwrite,
+             seed=args.seed)
 
-    elif args.quietness != 0:
-        if args.quietness == 1:
-            logger.setLevel(logging.WARNING)
-            joker_logger.setLevel(logging.WARNING)
-        else: # anything >= 2
-            logger.setLevel(logging.ERROR)
-            joker_logger.setLevel(logging.ERROR)
-
-    else: # default
-        logger.setLevel(logging.INFO)
-        joker_logger.setLevel(logging.INFO)
-
-    pool_kwargs = dict(mpi=args.mpi, processes=args.n_procs)
-    pool = choose_pool(**pool_kwargs)
-
-    main(config_file=args.config_file, pool=pool, seed=args.seed,
-         overwrite=args.overwrite)
+    sys.exit(0)
