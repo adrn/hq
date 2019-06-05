@@ -1,12 +1,10 @@
 # Standard library
-from collections import defaultdict
 from os.path import join, exists
 import sys
 
 # Third-party
 import astropy.units as u
 from astropy.table import Table
-from astropy.time import Time
 import h5py
 import numpy as np
 from tqdm import tqdm
