@@ -20,3 +20,7 @@ def gelman_rubin(chain):
     var_θ = (n - 1) / n * W + 1 / n * B
 
     return np.sqrt(var_θ / W)
+
+
+def ln_normal(x, mu, var):
+    return -0.5 * (np.log(2*np.pi * var) + (x - mu)**2 / var)
