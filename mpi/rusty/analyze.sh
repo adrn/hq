@@ -17,6 +17,6 @@ conda activate hq
 
 date
 
-python analyze_samplings.py --name dr16-beta-snr-jitter -v
+python analyze_joker_samplings.py --name dr16-beta-snr-jitter -v
 
 date

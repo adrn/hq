@@ -2,9 +2,10 @@
 #SBATCH -J apogee-emcee
 #SBATCH -o apogee-emcee.o%j
 #SBATCH -e apogee-emcee.e%j
-#SBATCH -n 720
+#SBATCH -n 400
 #SBATCH -t 12:00:00
 #SBATCH -p cca
+#SBATCH --constraint=skylake
 
 source ~/.bash_profile
 
@@ -16,6 +17,6 @@ conda activate hq
 
 date
 
-python run_continue_mcmc.py --name dr16-beta-snr-jitter -v
+mpirun -n $SLURM_NTASKS python -m mpi4py.futures run_continue_mcmc.py --name dr16-beta-snr-jitter -v --mpi
 
 date

@@ -20,6 +20,7 @@ from hq.data import get_rvdata
 from hq.log import logger
 from hq.config import HQ_CACHE_PATH, config_to_alldata, config_to_jokerparams
 from hq.script_helpers import get_parser
+from hq.mcmc_helpers import ln_normal
 from hq.samples_analysis import (unimodal_P, max_phase_gap, phase_coverage,
                                  periods_spanned, optimize_mode)
 
@@ -59,6 +60,14 @@ def worker(apogee_id, data, joker, poly_trend, n_requested_samples,
     row['max_phase_gap'] = max_phase_gap(MAP_sample[0], data)
     row['phase_coverage'] = phase_coverage(MAP_sample[0], data)
     row['periods_spanned'] = periods_spanned(MAP_sample[0], data)
+    
+    lls = []
+    for i, orbit in enumerate(samples.orbits):
+        lls.append(ln_normal(orbit.radial_velocity(data.t).to_value(u.km/u.s), 
+                             data.rv.to_value(u.km/u.s), 
+                             data.stddev.to_value(u.km/u.s)**2).sum())
+    row['max_unmarginalized_ln_likelihood'] = max(lls)
+    
 
     units = dict()
     for k in row:
@@ -86,7 +95,6 @@ def main(run_name, pool):
 
     # Load the data for this run:
     allstar, allvisit = config_to_alldata(config)
-    allstar = allstar[:16] # HACK: for testing
     allvisit = allvisit[np.isin(allvisit['APOGEE_ID'], allstar['APOGEE_ID'])]
 
     n_requested_samples = config['requested_samples_per_star']
@@ -104,7 +112,7 @@ def main(run_name, pool):
             data = get_rvdata(visits)
 
             tasks.append([apogee_id, data, joker, poly_trend,
-                          n_requested_samples, results_f])
+                          n_requested_samples, results_path])
 
     rows = []
     for r, units in tqdm(pool.starmap(worker, tasks), total=len(tasks)):
