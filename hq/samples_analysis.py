@@ -136,8 +136,9 @@ def phase_coverage_per_period(sample, data):
     """
     dt = (data.t - data.t0).to(u.day)
     phase = dt / sample['P']
-    H, _ = np.histogram(phase, bins=np.arange(0, phase.max()+1, 1))
-    return H.max()
+    H1, _ = np.histogram(phase, bins=np.arange(0, phase.max()+1, 1))
+    H2, _ = np.histogram(phase, bins=np.arange(-0.5, phase.max()+1, 1))
+    return max(H1.max(), H2.max())
 
 
 def optimize_mode(init_sample, data, joker, minimize_kwargs=None,
