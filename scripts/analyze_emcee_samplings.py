@@ -98,7 +98,7 @@ def main(run_name, pool):
                                     '{0}-emcee-metadata.fits'.format(run_name))
 
     sampler_filenames = glob.glob(path.join(HQ_CACHE_PATH, run_name,
-                                            'emcee', '*.pickle'))
+                                            'emcee', '2M*.pickle'))
     apogee_ids = [path.splitext(path.basename(x))[0] for x in sampler_filenames]
 
     # Load the data for this run:
