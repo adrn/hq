@@ -50,7 +50,7 @@ def worker(apogee_id, data):
     ll_basic = ln_likelihood_robust([opt_mu, -8, 1], data)
 
     resp = dict()
-    resp['apogee_id'] = apogee_id
+    resp['APOGEE_ID'] = apogee_id
     resp['robust_constant_ln_likelihood'] = ll_robust
     resp['robust_success'] = res.success
     resp['constant_ln_likelihood'] = ll_basic
