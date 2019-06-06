@@ -46,6 +46,7 @@ def worker(apogee_id, data, params, sampler_file):
     flatchain = np.vstack(emcee_sampler.chain[:, 1024:])
     MAP_idx = flatlnprob.argmax()
     MAP_sample = model.unpack_samples(flatchain[MAP_idx])[0]
+    MAP_sample.t0 = data.t0
 
     flatchain_thin = np.vstack(emcee_sampler.chain[:, 1024::8])
     thin_samples = model.unpack_samples(flatchain_thin)
@@ -78,9 +79,6 @@ def worker(apogee_id, data, params, sampler_file):
         if hasattr(row[k], 'unit'):
             units[k] = row[k].unit
             row[k] = row[k].value
-
-            if '{}_err'.format(k) in row.keys():
-                row['{}_err'.format(k)] = row['{}_err'.format(k)].to_value(units[k])
 
     return row, units
 
