@@ -17,7 +17,7 @@ from hq.config import HQ_CACHE_PATH, config_to_alldata
 from hq.script_helpers import get_parser
 
 
-def main(run_name, pool, overwrite=False, seed=None):
+def main(run_name, pool, overwrite=False):
     run_path = path.join(HQ_CACHE_PATH, run_name)
     with open(path.join(run_path, 'config.yml'), 'r') as f:
         config = yaml.load(f.read())
@@ -64,7 +64,6 @@ if __name__ == '__main__':
     Pool = SerialPool
 
     with Pool() as pool:
-        main(run_name=args.run_name, pool=pool, overwrite=args.overwrite,
-             seed=args.seed)
+        main(run_name=args.run_name, pool=pool, overwrite=args.overwrite)
 
     sys.exit(0)
