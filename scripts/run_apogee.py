@@ -1,5 +1,6 @@
 # Standard library
 from os.path import join, exists
+import pickle
 import sys
 import time
 
@@ -14,7 +15,6 @@ from schwimmbad import SerialPool
 from schwimmbad.mpi import MPIAsyncPool
 
 # Project
-from hq.data import get_rvdata
 from hq.log import logger
 from hq.config import (HQ_CACHE_PATH, config_to_jokerparams,
                        config_to_prior_cache, config_to_alldata)
@@ -60,7 +60,7 @@ def callback(future):
     # Ensure that the results file exists - this is where we cache samples that
     # pass the rejection sampling step
     with h5py.File(res['results_filename'], 'a') as results_f:
-        if res['apogee_id'] in results_f: # TODO: is this ok?
+        if res['apogee_id'] in results_f:  # TODO: is this ok?
             del results_f[res['apogee_id']]
 
         g = results_f.create_group(res['apogee_id'])
@@ -83,12 +83,17 @@ def main(run_name, pool, overwrite=False, seed=None):
     prior_cache_path = config_to_prior_cache(config, params)
     results_path = join(HQ_CACHE_PATH, run_name,
                         'thejoker-{0}.hdf5'.format(run_name))
+    tasks_path = join(HQ_CACHE_PATH, run_name, 'tmp-tasks.pkl')
 
     if not exists(prior_cache_path):
         raise IOError("Prior cache file '{0}' does not exist! Did you run "
                       "make_prior_cache.py?")
 
-    with h5py.File(results_path, 'a') as f: # ensure the file exists
+    if not exists(tasks_path):
+        raise IOError("Tasks file '{0}' does not exist! Did you run "
+                      "make_tasks.py?")
+
+    with h5py.File(results_path, 'a') as f:  # ensure the file exists
         done_apogee_ids = list(f.keys())
     if overwrite:
         done_apogee_ids = list()
@@ -102,30 +107,30 @@ def main(run_name, pool, overwrite=False, seed=None):
     rnd = np.random.RandomState(seed=seed)
 
     logger.debug("Creating TheJoker instance with {0}".format(rnd))
-    joker = TheJoker(params, random_state=rnd, n_batches=8) # HACK: MAGIC NUMBER
+    joker = TheJoker(params, random_state=rnd, n_batches=8)  # HACK: MAGICNUMBER
     logger.debug("Processing pool has size = {0}".format(pool.size))
     logger.debug("{0} stars left to process for run '{1}'"
                  .format(len(allstar), run_name))
 
-    tasks = []
-    processed_ids = []
-    logger.debug("Loading data and preparing tasks...")
     with h5py.File(results_path, 'a') as results_f:
-        for star in tqdm(allstar):
-            if star['APOGEE_ID'] in processed_ids:
-                continue
-            assert star['APOGEE_ID'] not in results_f or overwrite
+        processed_ids = list(results_f.keys())
 
-            visits = allvisit[allvisit['APOGEE_ID'] == star['APOGEE_ID']]
-            data = get_rvdata(visits)
+    with open(tasks_path, 'rb') as f:
+        tasks = pickle.load(f)
 
-            tasks.append([joker, star['APOGEE_ID'], data, config, results_path])
+    logger.debug("Loading data and preparing tasks...")
+    full_tasks = []
+    for apogee_id, data in tasks:
+        if apogee_id in processed_ids and not overwrite:
+            continue
+
+        full_tasks.append([joker, apogee_id, data, config, results_path])
 
     logger.info('Done preparing tasks: {0} stars in process queue'
                 .format(len(tasks)))
 
-    for r in tqdm(pool.starmap(worker, tasks, callback=callback),
-                  total=len(tasks)):
+    for r in tqdm(pool.starmap(worker, full_tasks, callback=callback),
+                  total=len(full_tasks)):
         pass
 
 
