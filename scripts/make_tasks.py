@@ -4,6 +4,7 @@ import pickle
 import sys
 
 # Third-party
+from astropy.table import Table
 import numpy as np
 from thejoker.log import log as joker_logger
 from tqdm import tqdm
@@ -31,7 +32,12 @@ def main(run_name, pool, overwrite=False):
 
     # Get data files out of config file:
     allstar, allvisit = config_to_alldata(config)
-    allvisit = allvisit[np.isin(allvisit['APOGEE_ID'], allstar['APOGEE_ID'])]
+    _allvisit = allvisit[np.isin(allvisit['APOGEE_ID'], allstar['APOGEE_ID'])]
+
+    # Load the full allvisit file, but only some columns:
+    allvisit = Table()
+    for k in ['APOGEE_ID', 'JD', 'VHELIO', 'VRELERR', 'SNR']:
+        allvisit[k] = _allvisit[k]
 
     tasks = []
     logger.debug("Loading data and preparing tasks...")
