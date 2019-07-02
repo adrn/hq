@@ -17,6 +17,6 @@ conda activate hq
 
 date
 
-mpirun -n $SLURM_NTASKS python -m mpi4py.futures run_continue_mcmc.py --name dr16-beta-snr-jitter -v --mpi
+stdbuf -o0 -e0 mpirun -n $SLURM_NTASKS python -m mpi4py.futures run_continue_mcmc.py --name $HQ_RUN -v --mpi
 
 date

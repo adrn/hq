@@ -16,6 +16,6 @@ conda activate hq
 
 date
 
-python make_prior_cache.py --name dr16-beta-snr-jitter -v
+python make_prior_cache.py --name $HQ_RUN -v
 
 date
