@@ -11,7 +11,7 @@ def get_new_err(visits, a, b, s):
     return np.sqrt(s**2 + err**2 + a*snr**b)
 
 
-def get_rvdata(visits, apply_error_calibration=True, float64=False):
+def get_rvdata(visits, apply_error_calibration=True, float64=True):
     if float64:
         dtype = 'f8'
     else:
