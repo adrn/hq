@@ -112,14 +112,17 @@ def main(run_name, pool):
     with open(tasks_path, 'rb') as f:
         tasks = pickle.load(f)
 
+    logger.debug('Loaded {0} tasks...preparing process queue'
+                 .format(len(tasks)))
+
     full_tasks = []
     with h5py.File(results_path, 'r') as results_f:
         for apogee_id, data in tasks:
             if apogee_id not in results_f:
                 continue
-
-        full_tasks.append([apogee_id, data, joker, poly_trend,
-                           n_requested_samples, results_path])
+        
+            full_tasks.append([apogee_id, data, joker, poly_trend,
+                               n_requested_samples, results_path])
 
     logger.info('Done preparing tasks: {0} stars in process queue'
                 .format(len(full_tasks)))
