@@ -1,5 +1,6 @@
 # Standard library
 from os.path import join, exists
+import pickle
 import sys
 
 # Third-party
@@ -91,6 +92,7 @@ def main(run_name, pool):
                         'thejoker-{0}.hdf5'.format(run_name))
     metadata_path = join(HQ_CACHE_PATH, run_name,
                          '{0}-metadata.fits'.format(run_name))
+    tasks_path = join(HQ_CACHE_PATH, run_name, 'tmp-tasks.pkl')
 
     # Load the data for this run:
     allstar, allvisit = config_to_alldata(config)
@@ -103,18 +105,28 @@ def main(run_name, pool):
         raise IOError("Results file {0} does not exist! Did you run "
                       "run_apogee.py?".format(results_path))
 
-    tasks = []
-    with h5py.File(results_path, 'r') as results_f:
-        for apogee_id in results_f.keys():
-            # Load data
-            visits = allvisit[allvisit['APOGEE_ID'] == apogee_id]
-            data = get_rvdata(visits)
+    if not exists(tasks_path):
+        raise IOError("Tasks file '{0}' does not exist! Did you run "
+                      "make_tasks.py?")
 
-            tasks.append([apogee_id, data, joker, poly_trend,
-                          n_requested_samples, results_path])
+    with open(tasks_path, 'rb') as f:
+        tasks = pickle.load(f)
+
+    full_tasks = []
+    with h5py.File(results_path, 'r') as results_f:
+        for apogee_id, data in tasks:
+            if apogee_id not in results_f:
+                continue
+
+        full_tasks.append([apogee_id, data, joker, poly_trend,
+                           n_requested_samples, results_path])
+
+    logger.info('Done preparing tasks: {0} stars in process queue'
+                .format(len(full_tasks)))
 
     rows = []
-    for r, units in tqdm(pool.starmap(worker, tasks), total=len(tasks)):
+    for r, units in tqdm(pool.starmap(worker, full_tasks),
+                         total=len(full_tasks)):
         rows.append(r)
 
     tbl = Table(rows)
