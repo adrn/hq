@@ -16,6 +16,8 @@ conda activate hq
 
 date
 
-python make_prior_cache.py --name $HQ_RUN -v
+stdbuf -o0 -e0 python make_prior_cache.py --name $HQ_RUN -v
+
+stdbuf -o0 -e0 python make_tasks.py --name $HQ_RUN -v
 
 date
