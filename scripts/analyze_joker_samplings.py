@@ -15,7 +15,6 @@ from schwimmbad import SerialPool
 from schwimmbad.mpi import MPIAsyncPool
 
 # Project
-from hq.data import get_rvdata
 from hq.log import logger
 from hq.config import HQ_CACHE_PATH, config_to_alldata, config_to_jokerparams
 from hq.script_helpers import get_parser
@@ -32,6 +31,10 @@ def worker(apogee_id, data, joker, poly_trend, n_requested_samples,
                                          poly_trend=poly_trend)
         ln_p = results_f[apogee_id]['ln_prior'][:]
         ln_l = results_f[apogee_id]['ln_likelihood'][:]
+
+    if len(ln_p) < 1:
+        logger.warning("No samples for: {}".format(apogee_id))
+        return None, None
 
     row = dict()
     row['APOGEE_ID'] = apogee_id
@@ -120,7 +123,7 @@ def main(run_name, pool):
         for apogee_id, data in tasks:
             if apogee_id not in results_f:
                 continue
-        
+
             full_tasks.append([apogee_id, data, joker, poly_trend,
                                n_requested_samples, results_path])
 
@@ -130,7 +133,8 @@ def main(run_name, pool):
     rows = []
     for r, units in tqdm(pool.starmap(worker, full_tasks),
                          total=len(full_tasks)):
-        rows.append(r)
+        if r is not None:
+            rows.append(r)
 
     tbl = Table(rows)
 
