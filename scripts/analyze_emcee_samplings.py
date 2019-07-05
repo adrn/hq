@@ -29,9 +29,8 @@ def worker(apogee_id, data, params, sampler_file):
     model = TheJokerMCMCModel(params, data)
 
     with open(sampler_file, 'rb') as f:
-        emcee_sampler = pickle.load(f)
+        chain, lnprob = pickle.load(f)
 
-    chain = emcee_sampler.chain[:, 1024:]
     R = gelman_rubin(chain)
 
     row = dict()
@@ -42,13 +41,13 @@ def worker(apogee_id, data, params, sampler_file):
     row['R_med'] = np.median(R)
 
     # HACK: some MAGIC NUMBERs below
-    flatlnprob = np.concatenate(emcee_sampler.lnprobability[1024:])
-    flatchain = np.vstack(emcee_sampler.chain[:, 1024:])
+    flatlnprob = np.concatenate(lnprob)
+    flatchain = np.vstack(chain)
     MAP_idx = flatlnprob.argmax()
     MAP_sample = model.unpack_samples(flatchain[MAP_idx])[0]
     MAP_sample.t0 = data.t0
 
-    flatchain_thin = np.vstack(emcee_sampler.chain[:, 1024::8])
+    flatchain_thin = np.vstack(chain)
     thin_samples = model.unpack_samples(flatchain_thin)
     thin_samples.t0 = data.t0
 

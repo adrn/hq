@@ -53,7 +53,8 @@ def worker(joker, apogee_id, data, config, MAP_sample, emcee_cache_path,
 
         # np.save(chain_file, emcee_sampler.chain.astype('f4'))
         with open(sampler_file, 'wb') as f:
-            pickle.dump(emcee_sampler, f)
+            pickle.dump((emcee_sampler.chain[:, ::8],
+                         emcee_sampler.lnprobability[::8]), f)
 
         if not exists(model_file):
             with open(model_file, 'wb') as f:
@@ -64,9 +65,9 @@ def worker(joker, apogee_id, data, config, MAP_sample, emcee_cache_path,
 
         if emcee_sampler is None:
             with open(sampler_file, 'rb') as f:
-                emcee_sampler = pickle.load(f)
+                chain, _ = pickle.load(f)
 
-        fig = plot_mcmc_diagnostic(emcee_sampler.chain)
+        fig = plot_mcmc_diagnostic(chain)
         fig.savefig(plot_file, dpi=250)
         plt.close(fig)
 
