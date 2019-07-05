@@ -57,10 +57,16 @@ def config_to_jokerparams(config):
 
 
 def config_to_prior_cache(config, params):
-    prior_filename = ('P{0:.0f}-{1:.0f}_{2:d}_prior_samples.hdf5'
-                      .format(params.P_min.to_value(u.day),
-                              params.P_max.to_value(u.day),
-                              config['prior']['n_samples']))
+    if params._fixed_jitter:
+        prior_filename = ('P{0:.0f}-{1:.0f}_{2:d}_prior_samples.hdf5'
+                          .format(params.P_min.to_value(u.day),
+                                  params.P_max.to_value(u.day),
+                                  config['prior']['n_samples']))
+    else:
+        prior_filename = ('P{0:.0f}-{1:.0f}_{2:d}_jitter_prior_samples.hdf5'
+                          .format(params.P_min.to_value(u.day),
+                                  params.P_max.to_value(u.day),
+                                  config['prior']['n_samples']))
     return join(HQ_CACHE_PATH, prior_filename)
 
 
@@ -81,7 +87,7 @@ def config_to_alldata(config):
     min_nvisits = config['data'].get('min_nvisits', 3)
     logger.log(1, "Min. number of visits: {0}".format(min_nvisits))
 
-    if starflag_bits is None: # use deaults
+    if starflag_bits is None:  # use deaults
         # VERY_BRIGHT_NEIGHBOR, SUSPECT_RV_COMBINATION, SUSPECT_BROAD_LINES
         star_starflag_bits = [3, 16, 17]
 
@@ -102,7 +108,7 @@ def config_to_alldata(config):
     star_mask = np.isin(allstar_tbl['APOGEE_ID'],
                         v_apogee_ids[counts >= min_nvisits])
 
-    if aspcapflag_bits is None: # use defaults
+    if aspcapflag_bits is None:  # use defaults
         # TEFF_BAD, LOGG_BAD, VMICRO_BAD, ROTATION_BAD, VSINI_BAD
         aspcapflag_bits = [16, 17, 18, 26, 30]
 
