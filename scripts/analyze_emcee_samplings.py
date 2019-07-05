@@ -37,8 +37,8 @@ def worker(apogee_id, data, params, sampler_file):
     row['APOGEE_ID'] = apogee_id
     row['n_visits'] = len(data)
 
-    row['R_max'] = np.max(R)
-    row['R_med'] = np.median(R)
+    row['gelman_rubin_max'] = np.max(R)
+    row['gelman_rubin_med'] = np.median(R)
 
     # HACK: some MAGIC NUMBERs below
     flatlnprob = np.concatenate(lnprob)
