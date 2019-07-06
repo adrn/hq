@@ -26,12 +26,12 @@ from hq.script_helpers import get_parser
 
 def worker(joker, apogee_id, data, config, MAP_sample, emcee_cache_path,
            overwrite):
-    sampler_file = join(emcee_cache_path, '{0}.pickle'.format(apogee_id))
+    chain_file = join(emcee_cache_path, '{0}.npz'.format(apogee_id))
     plot_file = join(emcee_cache_path, '{0}.png'.format(apogee_id))
     model_file = join(emcee_cache_path, 'model.pickle')
 
     emcee_sampler = None
-    if not exists(sampler_file) or overwrite:
+    if not exists(chain_file) or overwrite:
         t0 = time.time()
         logger.log(1, "{0}: Starting emcee sampling".format(apogee_id))
 
@@ -51,10 +51,7 @@ def worker(joker, apogee_id, data, config, MAP_sample, emcee_cache_path,
                      "({2:.2f} seconds)".format(apogee_id, len(samples),
                                                 time.time() - t0))
 
-        # np.save(chain_file, emcee_sampler.chain.astype('f4'))
-        with open(sampler_file, 'wb') as f:
-            pickle.dump((emcee_sampler.chain[:, ::8],
-                         emcee_sampler.lnprobability[::8]), f)
+        np.savez(chain_file, (emcee_sampler.chain, emcee_sampler.lnprobability))
 
         if not exists(model_file):
             with open(model_file, 'wb') as f:
@@ -64,8 +61,8 @@ def worker(joker, apogee_id, data, config, MAP_sample, emcee_cache_path,
         logger.debug('Making plots for {0}'.format(apogee_id))
 
         if emcee_sampler is None:
-            with open(sampler_file, 'rb') as f:
-                chain, _ = pickle.load(f)
+            samples = np.load(chain_file)
+            chain = samples['arr_0'][0]
 
         fig = plot_mcmc_diagnostic(chain)
         fig.savefig(plot_file, dpi=250)
