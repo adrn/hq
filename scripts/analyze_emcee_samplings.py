@@ -1,7 +1,6 @@
 # Standard library
 from os import path
 import sys
-import pickle
 import glob
 
 # Third-party
@@ -25,11 +24,12 @@ from hq.samples_analysis import (max_phase_gap, phase_coverage,
                                  periods_spanned, phase_coverage_per_period)
 
 
-def worker(apogee_id, data, params, sampler_file):
+def worker(apogee_id, data, params, chain_file):
     model = TheJokerMCMCModel(params, data)
 
-    with open(sampler_file, 'rb') as f:
-        chain, lnprob = pickle.load(f)
+    samples = np.load(chain_file)
+    chain = samples['arr_0']
+    lnprob = samples['arr_1']
 
     R = gelman_rubin(chain)
 
@@ -95,7 +95,7 @@ def main(run_name, pool):
                                     '{0}-emcee-metadata.fits'.format(run_name))
 
     sampler_filenames = glob.glob(path.join(HQ_CACHE_PATH, run_name,
-                                            'emcee', '2M*.pickle'))
+                                            'emcee', '*.npz'))
     apogee_ids = [path.splitext(path.basename(x))[0] for x in sampler_filenames]
 
     # Load the data for this run:

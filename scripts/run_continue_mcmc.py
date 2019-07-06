@@ -51,7 +51,7 @@ def worker(joker, apogee_id, data, config, MAP_sample, emcee_cache_path,
                      "({2:.2f} seconds)".format(apogee_id, len(samples),
                                                 time.time() - t0))
 
-        np.savez(chain_file, (emcee_sampler.chain, emcee_sampler.lnprobability))
+        np.savez(chain_file, emcee_sampler.chain, emcee_sampler.lnprobability)
 
         if not exists(model_file):
             with open(model_file, 'wb') as f:
@@ -62,7 +62,7 @@ def worker(joker, apogee_id, data, config, MAP_sample, emcee_cache_path,
 
         if emcee_sampler is None:
             samples = np.load(chain_file)
-            chain = samples['arr_0'][0]
+            chain = samples['arr_0']
 
         fig = plot_mcmc_diagnostic(chain)
         fig.savefig(plot_file, dpi=250)
