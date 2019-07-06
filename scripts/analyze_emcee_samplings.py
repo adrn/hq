@@ -7,6 +7,7 @@ import glob
 import astropy.units as u
 from astropy.stats import median_absolute_deviation
 from astropy.table import Table
+import h5py
 import numpy as np
 from tqdm import tqdm
 import yaml
@@ -24,7 +25,7 @@ from hq.samples_analysis import (max_phase_gap, phase_coverage,
                                  periods_spanned, phase_coverage_per_period)
 
 
-def worker(apogee_id, data, params, chain_file):
+def worker(apogee_id, data, params, n_samples, chain_file):
     model = TheJokerMCMCModel(params, data)
 
     samples = np.load(chain_file)
@@ -79,13 +80,24 @@ def worker(apogee_id, data, params, chain_file):
             units[k] = row[k].unit
             row[k] = row[k].value
 
-    return row, units
+    # select out a random subset of the requested number of samples:
+    idx = np.random.choice(len(thin_samples), size=n_samples, replace=False)
+    samples = thin_samples[idx]
+
+    res = dict()
+    res['row'] = row
+    res['samples'] = samples
+    res['apogee_id'] = apogee_id
+    res['units'] = units
+
+    return res
 
 
 def main(run_name, pool):
     run_path = path.join(HQ_CACHE_PATH, run_name)
     with open(path.join(run_path, 'config.yml'), 'r') as f:
         config = yaml.load(f.read())
+    n_samples = config['requested_samples_per_star']
 
     # Create an instance of The Joker:
     params = config_to_jokerparams(config)
@@ -93,6 +105,8 @@ def main(run_name, pool):
     # Get paths to files needed to run
     emcee_metadata_path = path.join(HQ_CACHE_PATH, run_name,
                                     '{0}-emcee-metadata.fits'.format(run_name))
+    emcee_results_path = path.join(HQ_CACHE_PATH, run_name,
+                                   'emcee-samples.fits')
 
     chain_filenames = glob.glob(path.join(HQ_CACHE_PATH, run_name,
                                           'emcee', '*.npz'))
@@ -108,15 +122,27 @@ def main(run_name, pool):
         # Load data
         visits = allvisit[allvisit['APOGEE_ID'] == apogee_id]
         data = get_rvdata(visits)
-        tasks.append([apogee_id, data, params, chain_file])
+        tasks.append([apogee_id, data, params, n_samples, chain_file])
 
     rows = []
-    for r, units in tqdm(pool.starmap(worker, tasks), total=len(tasks)):
-        rows.append(r)
+    with h5py.File(emcee_results_path, 'a') as results_f:
+        for res in tqdm(pool.starmap(worker, tasks), total=len(tasks)):
+            rows.append(res['row'])
+
+            # replace existing samples
+            if res['apogee_id'] in results_f:
+                del results_f[res['apogee_id']]
+
+            g = results_f.create_group(res['apogee_id'])
+            res['samples'].to_hdf5(g)
+
+            # TODO: no support for prior / likelihood values...
+            # g.create_dataset('ln_prior', data=res['ln_prior'])
+            # g.create_dataset('ln_likelihood', data=res['ln_likelihood'])
 
     tbl = Table(rows)
 
-    for k, unit in units.items():
+    for k, unit in res['units'].items():
         tbl[k] = tbl[k] * unit
 
     tbl.write(emcee_metadata_path, overwrite=True)
