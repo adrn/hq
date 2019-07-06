@@ -94,9 +94,9 @@ def main(run_name, pool):
     emcee_metadata_path = path.join(HQ_CACHE_PATH, run_name,
                                     '{0}-emcee-metadata.fits'.format(run_name))
 
-    sampler_filenames = glob.glob(path.join(HQ_CACHE_PATH, run_name,
-                                            'emcee', '*.npz'))
-    apogee_ids = [path.splitext(path.basename(x))[0] for x in sampler_filenames]
+    chain_filenames = glob.glob(path.join(HQ_CACHE_PATH, run_name,
+                                          'emcee', '*.npz'))
+    apogee_ids = [path.splitext(path.basename(x))[0] for x in chain_filenames]
 
     # Load the data for this run:
     allstar, allvisit = config_to_alldata(config)
@@ -104,11 +104,11 @@ def main(run_name, pool):
     allvisit = allvisit[np.isin(allvisit['APOGEE_ID'], allstar['APOGEE_ID'])]
 
     tasks = []
-    for apogee_id, sampler_file in zip(apogee_ids, sampler_filenames):
+    for apogee_id, chain_file in zip(apogee_ids, chain_filenames):
         # Load data
         visits = allvisit[allvisit['APOGEE_ID'] == apogee_id]
         data = get_rvdata(visits)
-        tasks.append([apogee_id, data, params, sampler_file])
+        tasks.append([apogee_id, data, params, chain_file])
 
     rows = []
     for r, units in tqdm(pool.starmap(worker, tasks), total=len(tasks)):
