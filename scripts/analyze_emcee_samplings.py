@@ -12,6 +12,8 @@ import numpy as np
 from tqdm import tqdm
 import yaml
 from thejoker.sampler.mcmc import TheJokerMCMCModel
+from thejoker.sampler.fast_likelihood import batch_marginal_ln_likelihood
+from thejoker.sampler.io import pack_prior_samples
 from schwimmbad import SerialPool
 from schwimmbad.mpi import MPIAsyncPool
 
@@ -44,9 +46,21 @@ def worker(apogee_id, data, params, n_samples, chain_file):
     # HACK: some MAGIC NUMBERs below
     flatlnprob = np.concatenate(lnprob)
     flatchain = np.vstack(chain)
+
+    # Compute the MAP sample for summary vals:
     MAP_idx = flatlnprob.argmax()
     MAP_sample = model.unpack_samples(flatchain[MAP_idx])[0]
     MAP_sample.t0 = data.t0
+
+    # But also compute the maximum likelihood sample and value:
+    #    First generate a "chunk" of nonlinear samples to pass to The Joker
+    #    likelihood machinery
+    samples = model.unpack_samples(flatchain)
+    chunk = pack_prior_samples(samples, data.rv.unit)
+    ll = batch_marginal_ln_likelihood(chunk, data, params)
+    max_ll_idx = ll.argmax()
+    max_ll_sample = model.unpack_samples(flatchain[max_ll_idx])[0]
+    max_ll_sample.t0 = data.t0
 
     flatchain_thin = np.vstack(chain)
     thin_samples = model.unpack_samples(flatchain_thin)
@@ -68,10 +82,12 @@ def worker(apogee_id, data, params, n_samples, chain_file):
     row['phase_coverage_per_period'] = phase_coverage_per_period(MAP_sample,
                                                                  data)
 
-    orbit = MAP_sample.get_orbit(0)
+    # Use the max marginal likelihood sample
+    orbit = max_ll_sample.get_orbit(0)
+    var = (data.stddev**2 + max_ll_sample['jitter']**2).to_value((u.km/u.s)**2)
     ll = ln_normal(orbit.radial_velocity(data.t).to_value(u.km/u.s),
                    data.rv.to_value(u.km/u.s),
-                   data.stddev.to_value(u.km/u.s)**2).sum()
+                   var).sum()
     row['max_unmarginalized_ln_likelihood'] = ll
 
     units = dict()

@@ -65,12 +65,14 @@ def worker(apogee_id, data, joker, poly_trend, n_requested_samples,
     row['phase_coverage_per_period'] = phase_coverage_per_period(MAP_sample[0],
                                                                  data)
 
-    lls = []
-    for i, orbit in enumerate(samples.orbits):
-        lls.append(ln_normal(orbit.radial_velocity(data.t).to_value(u.km/u.s),
-                             data.rv.to_value(u.km/u.s),
-                             data.stddev.to_value(u.km/u.s)**2).sum())
-    row['max_unmarginalized_ln_likelihood'] = max(lls)
+    # Use the max marginal likelihood sample
+    max_ll_sample = samples[ln_l.argmax()]
+    orbit = max_ll_sample.get_orbit(0)
+    var = (data.stddev**2 + max_ll_sample['jitter']**2).to_value((u.km/u.s)**2)
+    ll = ln_normal(orbit.radial_velocity(data.t).to_value(u.km/u.s),
+                   data.rv.to_value(u.km/u.s),
+                   var).sum()
+    row['max_unmarginalized_ln_likelihood'] = ll
 
     units = dict()
     for k in row:
