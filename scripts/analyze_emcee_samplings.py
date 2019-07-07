@@ -56,8 +56,8 @@ def worker(apogee_id, data, params, n_samples, chain_file):
     #    First generate a "chunk" of nonlinear samples to pass to The Joker
     #    likelihood machinery
     samples = model.unpack_samples(flatchain)
-    chunk = pack_prior_samples(samples, data.rv.unit)
-    ll = batch_marginal_ln_likelihood(chunk, data, params)
+    chunk, _ = pack_prior_samples(samples, data.rv.unit)
+    ll = batch_marginal_ln_likelihood(np.ascontiguousarray(chunk), data, params)
     max_ll_idx = ll.argmax()
     max_ll_sample = model.unpack_samples(flatchain[max_ll_idx])[0]
     max_ll_sample.t0 = data.t0
