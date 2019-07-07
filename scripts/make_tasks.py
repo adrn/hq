@@ -45,7 +45,9 @@ def main(run_name, pool, overwrite=False):
         for apogee_id in tqdm(apogee_ids):
             visits = allvisit[allvisit['APOGEE_ID'] == apogee_id]
             data = get_rvdata(visits)
-            data.to_hdf5(f[apogee_id])
+
+            g = f.create_group(apogee_id)
+            data.to_hdf5(g)
 
     logger.info('Done preparing tasks: {0} stars in process queue'
                 .format(len(apogee_ids)))
