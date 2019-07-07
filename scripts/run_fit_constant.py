@@ -1,10 +1,10 @@
 # Standard library
 from os import path
-import pickle
 import sys
 
 # Third-party
 from astropy.table import Table
+import h5py
 import numpy as np
 from thejoker.log import log as joker_logger
 from tqdm import tqdm
@@ -12,6 +12,7 @@ import yaml
 from scipy.optimize import minimize
 from schwimmbad import SerialPool
 from schwimmbad.mpi import MPIAsyncPool
+from thejoker.data import RVData
 
 # Project
 from hq.log import logger
@@ -66,7 +67,7 @@ def main(run_name, pool, overwrite=False, seed=None):
     # TODO: doesn't handle jitter!
     results_path = path.join(HQ_CACHE_PATH, run_name,
                              'constant-{0}.fits'.format(run_name))
-    tasks_path = path.join(HQ_CACHE_PATH, run_name, 'tmp-tasks.pkl')
+    tasks_path = path.join(HQ_CACHE_PATH, run_name, 'tmp-tasks.hdf5')
 
     if path.exists(results_path) and not overwrite:
         logger.info("Results file {} already exists. Use --overwrite if needed"
@@ -81,8 +82,11 @@ def main(run_name, pool, overwrite=False, seed=None):
     allstar, allvisit = config_to_alldata(config)
     allvisit = allvisit[np.isin(allvisit['APOGEE_ID'], allstar['APOGEE_ID'])]
 
-    with open(tasks_path, 'rb') as f:
-        tasks = pickle.load(f)
+    tasks = []
+    with h5py.File(tasks_path, 'r') as tasks_f:
+        for apogee_id in tasks_f:
+            data = RVData.from_hdf5(tasks_f[apogee_id])
+            tasks.append((apogee_id, data))
 
     logger.info('Done preparing tasks: {0} stars in process queue'
                 .format(len(tasks)))

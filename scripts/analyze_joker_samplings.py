@@ -97,7 +97,7 @@ def main(run_name, pool):
                         'thejoker-{0}.hdf5'.format(run_name))
     metadata_path = join(HQ_CACHE_PATH, run_name,
                          '{0}-metadata.fits'.format(run_name))
-    tasks_path = join(HQ_CACHE_PATH, run_name, 'tmp-tasks.pkl')
+    tasks_path = join(HQ_CACHE_PATH, run_name, 'tmp-tasks.hdf5')
 
     # Load the data for this run:
     allstar, allvisit = config_to_alldata(config)
@@ -114,8 +114,11 @@ def main(run_name, pool):
         raise IOError("Tasks file '{0}' does not exist! Did you run "
                       "make_tasks.py?")
 
-    with open(tasks_path, 'rb') as f:
-        tasks = pickle.load(f)
+    tasks = []
+    with h5py.File(tasks_path, 'r') as tasks_f:
+        for apogee_id in tasks_f:
+            data = RVData.from_hdf5(tasks_f[apogee_id])
+            tasks.append((apogee_id, data))
 
     logger.debug('Loaded {0} tasks...preparing process queue'
                  .format(len(tasks)))

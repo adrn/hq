@@ -1,6 +1,5 @@
 # Standard library
 from os.path import join, exists
-import pickle
 import sys
 import time
 
@@ -13,6 +12,7 @@ from tqdm import tqdm
 import yaml
 from schwimmbad import SerialPool
 from schwimmbad.mpi import MPIAsyncPool
+from thejoker.data import RVData
 
 # Project
 from hq.log import logger
@@ -83,7 +83,7 @@ def main(run_name, pool, overwrite=False, seed=None):
     prior_cache_path = config_to_prior_cache(config, params)
     results_path = join(HQ_CACHE_PATH, run_name,
                         'thejoker-{0}.hdf5'.format(run_name))
-    tasks_path = join(HQ_CACHE_PATH, run_name, 'tmp-tasks.pkl')
+    tasks_path = join(HQ_CACHE_PATH, run_name, 'tmp-tasks.hdf5')
 
     if not exists(prior_cache_path):
         raise IOError("Prior cache file '{0}' does not exist! Did you run "
@@ -115,8 +115,11 @@ def main(run_name, pool, overwrite=False, seed=None):
     with h5py.File(results_path, 'a') as results_f:
         processed_ids = list(results_f.keys())
 
-    with open(tasks_path, 'rb') as f:
-        tasks = pickle.load(f)
+    tasks = []
+    with h5py.File(tasks_path, 'r') as tasks_f:
+        for apogee_id in tasks_f:
+            data = RVData.from_hdf5(tasks_f[apogee_id])
+            tasks.append((apogee_id, data))
 
     logger.debug("Loading data and preparing tasks...")
     full_tasks = []

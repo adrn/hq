@@ -1,10 +1,10 @@
 # Standard library
 from os import path
-import pickle
 import sys
 
 # Third-party
 from astropy.table import Table
+import h5py
 import numpy as np
 from thejoker.log import log as joker_logger
 from tqdm import tqdm
@@ -23,7 +23,7 @@ def main(run_name, pool, overwrite=False):
     with open(path.join(run_path, 'config.yml'), 'r') as f:
         config = yaml.load(f.read())
 
-    tasks_path = path.join(HQ_CACHE_PATH, run_name, 'tmp-tasks.pkl')
+    tasks_path = path.join(HQ_CACHE_PATH, run_name, 'tmp-tasks.hdf5')
 
     if path.exists(tasks_path) and not overwrite:
         logger.info("File {} already exists. Use --overwrite if needed"
@@ -39,18 +39,16 @@ def main(run_name, pool, overwrite=False):
     for k in ['APOGEE_ID', 'JD', 'VHELIO', 'VRELERR', 'SNR']:
         allvisit[k] = _allvisit[k]
 
-    tasks = []
     logger.debug("Loading data and preparing tasks...")
-    for star in tqdm(allstar):
-        visits = allvisit[allvisit['APOGEE_ID'] == star['APOGEE_ID']]
-        data = get_rvdata(visits)
-        tasks.append([star['APOGEE_ID'], data])
+    apogee_ids = np.unique(allstar['APOGEE_ID'])
+    with h5py.File(tasks_path, 'w') as f:
+        for apogee_id in tqdm(apogee_ids):
+            visits = allvisit[allvisit['APOGEE_ID'] == apogee_id]
+            data = get_rvdata(visits)
+            data.to_hdf5(f[apogee_id])
 
     logger.info('Done preparing tasks: {0} stars in process queue'
-                .format(len(tasks)))
-
-    with open(tasks_path, 'wb') as f:
-        pickle.dump(tasks, f)
+                .format(len(apogee_ids)))
 
 
 if __name__ == '__main__':
