@@ -106,7 +106,7 @@ def main(run_name, pool):
     emcee_metadata_path = path.join(HQ_CACHE_PATH, run_name,
                                     '{0}-emcee-metadata.fits'.format(run_name))
     emcee_results_path = path.join(HQ_CACHE_PATH, run_name,
-                                   'emcee-samples.fits')
+                                   'emcee-samples.hdf5')
 
     chain_filenames = glob.glob(path.join(HQ_CACHE_PATH, run_name,
                                           'emcee', '*.npz'))
