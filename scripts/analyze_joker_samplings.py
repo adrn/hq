@@ -1,6 +1,5 @@
 # Standard library
 from os.path import join, exists
-import pickle
 import sys
 
 # Third-party
@@ -10,7 +9,7 @@ import h5py
 import numpy as np
 from tqdm import tqdm
 import yaml
-from thejoker import JokerSamples, TheJoker
+from thejoker import JokerSamples, TheJoker, RVData
 from schwimmbad import SerialPool
 from schwimmbad.mpi import MPIAsyncPool
 
