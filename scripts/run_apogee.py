@@ -82,7 +82,7 @@ def main(run_name, pool, overwrite=False, seed=None):
     params = config_to_jokerparams(config)
     prior_cache_path = config_to_prior_cache(config, params)
     results_path = join(HQ_CACHE_PATH, run_name,
-                        'thejoker-{0}.hdf5'.format(run_name))
+                        'thejoker-samples.hdf5')
     tasks_path = join(HQ_CACHE_PATH, run_name, 'tmp-tasks.hdf5')
 
     if not exists(prior_cache_path):

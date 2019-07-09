@@ -120,7 +120,7 @@ def main(run_name, pool):
 
     # Get paths to files needed to run
     emcee_metadata_path = path.join(HQ_CACHE_PATH, run_name,
-                                    '{0}-emcee-metadata.fits'.format(run_name))
+                                    'emcee-metadata.fits')
     emcee_results_path = path.join(HQ_CACHE_PATH, run_name,
                                    'emcee-samples.hdf5')
 

@@ -65,8 +65,7 @@ def main(run_name, pool, overwrite=False, seed=None):
 
     # Get paths to files needed to run
     # TODO: doesn't handle jitter!
-    results_path = path.join(HQ_CACHE_PATH, run_name,
-                             'constant-{0}.fits'.format(run_name))
+    results_path = path.join(HQ_CACHE_PATH, run_name, 'constant.fits')
     tasks_path = path.join(HQ_CACHE_PATH, run_name, 'tmp-tasks.hdf5')
 
     if path.exists(results_path) and not overwrite:

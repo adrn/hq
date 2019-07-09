@@ -92,10 +92,8 @@ def main(run_name, pool):
     joker = TheJoker(params)
 
     # Get paths to files needed to run
-    results_path = join(HQ_CACHE_PATH, run_name,
-                        'thejoker-{0}.hdf5'.format(run_name))
-    metadata_path = join(HQ_CACHE_PATH, run_name,
-                         '{0}-metadata.fits'.format(run_name))
+    results_path = join(HQ_CACHE_PATH, run_name, 'thejoker-samples.hdf5')
+    metadata_path = join(HQ_CACHE_PATH, run_name, 'metadata.fits')
     tasks_path = join(HQ_CACHE_PATH, run_name, 'tmp-tasks.hdf5')
 
     # Load the data for this run:

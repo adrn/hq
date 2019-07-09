@@ -82,8 +82,7 @@ def main(run_name, pool, overwrite=False):
     joker = TheJoker(params)
 
     # Load the analyzed joker samplings file, only keep unimodal:
-    joker_metadata = QTable.read(join(HQ_CACHE_PATH, run_name,
-                                      '{0}-metadata.fits'.format(run_name)))
+    joker_metadata = QTable.read(join(HQ_CACHE_PATH, run_name, 'metadata.fits'))
     unimodal_tbl = joker_metadata[joker_metadata['unimodal']]
 
     # Load the data:
