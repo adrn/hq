@@ -2,8 +2,10 @@ import numpy as np
 import astropy.units as u
 from astropy.constants import G
 
+
 def stellar_radius(logg, mass):
     return np.sqrt(G*mass / (10**logg*u.cm/u.s**2)).to(u.Rsun)
+
 
 def period_at_surface(M1, logg, e, M2=0*u.Msun):
     R1 = np.sqrt(G*M1 / (10**logg * u.cm/u.s**2))

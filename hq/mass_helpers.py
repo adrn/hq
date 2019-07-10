@@ -1,0 +1,52 @@
+import numpy as np
+
+# For abundance transformations:
+log_eC = 8.39
+log_eN = 7.78
+
+# Upper-triangle matrix from Martig et al.
+M = np.array([[95.87, -10.4, 41.36, 15.05, -67.61, -144.18, -9.42],
+              [0., -0.73, -5.32, -0.93, 7.05, 5.12, 1.52],
+              [0., 0., -46.78, -30.52, 133.58, -73.77, 16.04],
+              [0., 0., 0., -1.61, 38.94, -15.29, 1.35],
+              [0., 0., 0., 0., -88.99, 101.75, -18.65],
+              [0., 0., 0., 0., 0., 27.77, 28.8],
+              [0., 0., 0., 0., 0., 0., -4.1]])
+
+
+def CM_NM_to_CNM(M_H, C_M, N_M):
+    """Compute [(C+N)/M] using Keith's method.
+    Parameters
+    ----------
+    M_H : numeric
+        [M/H], metallicity.
+    C_M : numeric
+        [C/M], carbon abundance.
+    N_M : numeric
+        [N/M], nitrogen abundance.
+    """
+
+    C_H = C_M + M_H
+    N_H = N_M + M_H
+
+    N_C = 10**(C_H + log_eC)
+    N_N = 10**(N_H + log_eN)
+    N_CN = 10**log_eC + 10**log_eN
+
+    CN_H = np.log10(N_C + N_N) - np.log10(N_CN)
+    return CN_H - M_H
+
+
+def get_martig_vec(Teff, logg, M_H, C_M, N_M):
+    """Produces a 1D vector that can be inner-producted with the upper-triangle
+    matrix provided by Martig et al. to estimate the stellar mass.
+    """
+    vec = np.ones(7)
+    vec[1] = M_H
+    vec[2] = C_M
+    vec[3] = N_M
+    vec[4] = CM_NM_to_CNM(M_H, C_M, N_M)
+    vec[5] = Teff / 4000.
+    vec[6] = logg
+
+    return vec
