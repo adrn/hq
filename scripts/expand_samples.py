@@ -52,7 +52,7 @@ def main(run_name, pool, overwrite=False):
 
     allstar, allvisit = config_to_alldata(config)
 
-    samples_path = join(HQ_CACHE_PATH, 'samples')
+    samples_path = join(HQ_CACHE_PATH, run_name, 'samples')
     unq_stubs = np.unique([x[:4] for x in allstar['APOGEE_ID']])
     for stub in unq_stubs:
         os.makedirs(join(samples_path, stub), exist_ok=True)
