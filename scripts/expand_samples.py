@@ -75,6 +75,9 @@ def main(run_name, pool, overwrite=False):
             tasks.append((apogee_id, joker_results_path,
                           samples_path, config))
 
+    joker_f.close()
+    emcee_f.close()
+
     for r in tqdm(pool.starmap(worker, tasks), total=len(tasks)):
         pass
 
