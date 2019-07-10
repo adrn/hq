@@ -12,8 +12,6 @@ source ~/.bash_profile
 
 cd /mnt/ceph/users/apricewhelan/projects/hq/scripts
 
-module load gcc openmpi2 lib/hdf5/1.10.1 intel/mkl/2019-3 slurm
-
 conda activate hq
 
 date
