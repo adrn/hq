@@ -41,7 +41,13 @@ def get_martig_vec(Teff, logg, M_H, C_M, N_M):
     """Produces a 1D vector that can be inner-producted with the upper-triangle
     matrix provided by Martig et al. to estimate the stellar mass.
     """
-    vec = np.ones(7)
+    Teff = np.array(Teff)
+
+    if Teff.shape:
+        vec = np.ones((7, Teff.shape[0]))
+    else:
+        vec = np.ones((7, ))
+
     vec[1] = M_H
     vec[2] = C_M
     vec[3] = N_M
@@ -49,4 +55,4 @@ def get_martig_vec(Teff, logg, M_H, C_M, N_M):
     vec[5] = Teff / 4000.
     vec[6] = logg
 
-    return vec
+    return vec.T
