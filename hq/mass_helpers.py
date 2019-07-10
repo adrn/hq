@@ -74,7 +74,7 @@ def get_martig_vec(Teff, logg, M_H, C_M, N_M):
 
 
 def get_martig_mass(allstar):
-    ms = np.full(np.nan, len(allstar))
+    ms = np.full(len(allstar), np.nan)
     mask = get_martig_mask(allstar)
 
     # subset of allStar rows that are within the martig selection
