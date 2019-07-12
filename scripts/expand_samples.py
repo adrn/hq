@@ -4,7 +4,6 @@ from os.path import join
 import sys
 
 # Third-party
-from astropy.table import QTable
 import numpy as np
 import h5py
 from tqdm import tqdm
@@ -32,10 +31,7 @@ def worker(apogee_id, results_path, output_path, config):
             more_cols['ln_likelihood'] = np.full(len(samples), np.nan)
             more_cols['ln_prior'] = np.full(len(samples), np.nan)
 
-    res = QTable()
-    for k in samples.keys():
-        res[k] = samples[k]
-
+    res = samples.to_table()
     for k in more_cols:
         res[k] = more_cols[k]
 
