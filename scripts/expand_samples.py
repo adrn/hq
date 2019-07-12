@@ -38,7 +38,8 @@ def worker(apogee_id, results_path, output_path, config):
     if 'jitter' in config['hyperparams']:
         res.remove_column('jitter')
 
-    res.write(join(output_path, apogee_id[:4], '{}.fits.gz'.format(apogee_id)))
+    res.write(join(output_path, apogee_id[:4], '{}.fits.gz'.format(apogee_id)),
+              overwrite=True)
 
 
 def main(run_name, pool, overwrite=False):
