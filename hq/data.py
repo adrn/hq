@@ -11,6 +11,13 @@ def get_new_err(visits, a, b, s):
     return np.sqrt(s**2 + err**2 + a*snr**b)
 
 
+def get_nidever_err(visits):
+    # See email from Nidever
+    err = visits['VRELERR']
+    var = (3.5*err**1.2)**2 + 0.072**2
+    return np.sqrt(var)
+
+
 def get_rvdata(visits, apply_error_calibration=True, float64=True):
     if float64:
         dtype = 'f8'
@@ -21,9 +28,7 @@ def get_rvdata(visits, apply_error_calibration=True, float64=True):
     rv = visits['VHELIO'].astype(dtype) * u.km/u.s
 
     if apply_error_calibration:
-        # see notebook: Calibrate-visit-rv-err.ipynb
-        rv_err = get_new_err(visits,
-                             a=145.869, b=-2.8215, s=0.168)
+        rv_err = get_nidever_err(visits)
     else:
         rv_err = visits['VRELERR']
 
