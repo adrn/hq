@@ -43,15 +43,15 @@ class Model:
         self._zlim = np.log(P_lim)
 
     def unpack_pars(self, par_arr):
-        return {'k': par_arr[0], 'z0': par_arr[1], 'alpha0': par_arr[2],
+        return {'lnk': par_arr[0], 'z0': par_arr[1], 'alpha0': par_arr[2],
                 'muz': par_arr[3], 'lnsigz': par_arr[4]}
 
     def pack_pars(self, par_dict):
-        return np.array([par_dict['k'], par_dict['z0'], par_dict['alpha0'],
+        return np.array([par_dict['lnk'], par_dict['z0'], par_dict['alpha0'],
                          par_dict['muz'], par_dict['lnsigz']])
 
     def ln_ze_dens(self, p, e, z):
-        lna2 = lnalpha(z, p['k'], p['z0'], p['alpha0'])
+        lna2 = lnalpha(z, np.exp(p['lnk']), p['z0'], p['alpha0'])
         lna1 = np.log(1 - np.exp(lna2))
         lnpe = np.logaddexp(lna1 + self.B1.logpdf(e),
                             lna2 + self.B2.logpdf(e))
@@ -80,7 +80,7 @@ class Model:
         if not self._zlim[0] < p['z0'] < self._zlim[1]:
             return -np.inf
 
-        if not 0 < p['k'] < 100:
+        if not -1 < p['lnk'] < 4:
             return -np.inf
 
         if not 1 < p['muz'] < 10:
