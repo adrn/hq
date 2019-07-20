@@ -72,8 +72,8 @@ def config_to_prior_cache(config, params):
 
 
 def config_to_alldata(config):
-    allstar_tbl = fits.getdata(config['data']['allstar'])
-    allvisit_tbl = fits.getdata(config['data']['allvisit'])
+    allstar_tbl = fits.getdata(expanduser(config['data']['allstar']))
+    allvisit_tbl = fits.getdata(expanduser(config['data']['allvisit']))
 
     starflag_bits = config['data'].get('starflag_bits', None)
     aspcapflag_bits = config['data'].get('aspcapflag_bits', None)
