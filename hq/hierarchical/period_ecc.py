@@ -4,7 +4,7 @@
 
 # Third-party
 import numpy as np
-from scipy.stats import truncnorm
+from scipy.stats import truncnorm, beta
 from scipy.special import logsumexp
 
 # Project
@@ -29,11 +29,16 @@ def lntruncnorm(x, mu, sigma, clip_a, clip_b):
 
 class Model:
 
-    def __init__(self, ez_nk, K_n, ln_p0, B1, B2, P_lim=[2, 65536]):
+    def __init__(self, ez_nk, B1, B2, P_lim=[2, 65536]):
         self.ez = ez_nk  # (2, N, K)
-        self.K = K_n  # (N, )
-        self.ln_p0 = ln_p0  # (2, N, K)
+        self.K = np.isfinite(self.ez[0]).sum(axis=-1)  # (N, )
         self.P_lim = P_lim
+
+        # Used priors from The Joker:
+        ln_e_p0 = beta.logpdf(self.ez[0], a=0.867, b=3.03)
+        ln_z_p0 = np.full_like(self.ez[1],
+                               -np.log(np.log(P_lim[1]) - np.log(P_lim[0])))
+        self.ln_p0 = np.stack((ln_e_p0, ln_z_p0))  # (2, N, K)
 
         self.B1 = B1
         self.B2 = B2
@@ -82,6 +87,8 @@ class Model:
 
         if not -1 < p['lnk'] < 4:
             return -np.inf
+
+        lp += lnnormal(p['z0'], 3.5, 1.)
 
         if not 1 < p['muz'] < 10:
             return -np.inf
