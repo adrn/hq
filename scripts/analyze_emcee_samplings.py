@@ -64,8 +64,6 @@ def worker(apogee_id, data, params, n_samples, chain_file):
     # But also compute the maximum likelihood sample and value
     samples = model.unpack_samples(flatchain)
     ll, lp = compute_ll_lp(data, samples, params)
-    row['ln_prior'] = lp
-    row['ln_likelihood'] = ll
     max_ll_idx = np.array(ll).argmax()
     max_ll_sample = model.unpack_samples(flatchain[max_ll_idx])[0]
     max_ll_sample.t0 = data.t0
@@ -116,6 +114,8 @@ def worker(apogee_id, data, params, n_samples, chain_file):
     res['samples'] = samples
     res['apogee_id'] = apogee_id
     res['units'] = units
+    res['ln_prior'] = lp
+    res['ln_likelihood'] = ll
 
     return res
 
