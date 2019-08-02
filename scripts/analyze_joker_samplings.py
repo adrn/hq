@@ -9,6 +9,7 @@ import h5py
 import numpy as np
 from tqdm import tqdm
 import yaml
+from scipy.special import logsumexp
 from thejoker import JokerSamples, TheJoker, RVData
 from schwimmbad import SerialPool
 from schwimmbad.mpi import MPIAsyncPool
@@ -19,7 +20,8 @@ from hq.config import HQ_CACHE_PATH, config_to_alldata, config_to_jokerparams
 from hq.script_helpers import get_parser
 from hq.mcmc_helpers import ln_normal
 from hq.samples_analysis import (unimodal_P, max_phase_gap, phase_coverage,
-                                 periods_spanned, phase_coverage_per_period)
+                                 periods_spanned, phase_coverage_per_period,
+                                 constant_model_evidence)
 
 
 def worker(apogee_id, data, joker, poly_trend, n_requested_samples,
@@ -72,6 +74,10 @@ def worker(apogee_id, data, joker, poly_trend, n_requested_samples,
                    data.rv.to_value(u.km/u.s),
                    var).sum()
     row['max_unmarginalized_ln_likelihood'] = ll
+
+    # Compute the evidence, p(D), for the Kepler model and for the constant RV
+    row['constant_ln_evidence'] = constant_model_evidence(data)
+    row['kepler_ln_evidence'] = logsumexp(ln_l + ln_p) - np.log(len(ln_l))
 
     units = dict()
     for k in row:

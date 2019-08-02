@@ -169,3 +169,21 @@ def optimize_mode(init_sample, data, joker, minimize_kwargs=None,
 
     else:
         return opt_sample
+
+
+def constant_model_evidence(data):
+    """
+    Compute the Bayesian evidence, p(D), for a model that assumes a constant RV
+    for the input data.
+    """
+    N = len(data)
+    sn = data.stddev.value
+    vn = data.rv.value
+
+    sig2 = 1 / np.sum(1 / sn**2)
+    mu = sig2 * np.sum(vn / sn**2)
+
+    Z2 = -0.5 * (N*np.log(2*np.pi) + 2*np.sum(np.log(sn)) -
+                 np.log(sig2) + np.sum(vn**2 / sn**2) - mu**2 / sig2)
+
+    return Z2
