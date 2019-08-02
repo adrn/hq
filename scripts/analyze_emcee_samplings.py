@@ -15,7 +15,7 @@ from scipy.special import logsumexp
 from thejoker.sampler.mcmc import TheJokerMCMCModel
 from thejoker.sampler.fast_likelihood import batch_marginal_ln_likelihood
 from thejoker.sampler.io import pack_prior_samples
-from thejoker.likelihood import ln_prior
+from thejoker.sampler.likelihood import ln_prior
 from schwimmbad import SerialPool
 from schwimmbad.mpi import MPIAsyncPool
 
@@ -64,6 +64,8 @@ def worker(apogee_id, data, params, n_samples, chain_file):
     # But also compute the maximum likelihood sample and value
     samples = model.unpack_samples(flatchain)
     ll, lp = compute_ll_lp(data, samples, params)
+    res['ln_prior'] = lp
+    res['ln_likelihood'] = ll
     max_ll_idx = np.array(ll).argmax()
     max_ll_sample = model.unpack_samples(flatchain[max_ll_idx])[0]
     max_ll_sample.t0 = data.t0
@@ -161,9 +163,8 @@ def main(run_name, pool):
             g = results_f.create_group(res['apogee_id'])
             res['samples'].to_hdf5(g)
 
-            # TODO: no support for prior / likelihood values...
-            # g.create_dataset('ln_prior', data=res['ln_prior'])
-            # g.create_dataset('ln_likelihood', data=res['ln_likelihood'])
+            g.create_dataset('ln_prior', data=res['ln_prior'])
+            g.create_dataset('ln_likelihood', data=res['ln_likelihood'])
 
     tbl = Table(rows)
 
