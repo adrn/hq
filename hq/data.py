@@ -12,13 +12,16 @@ def get_new_err(visits, a, b, s):
     return np.sqrt(s**2 + err**2 + a*snr**b)
 
 
-def get_rvdata(visits, apply_error_calibration=True, float64=True):
+def get_rvdata(visits, apply_error_calibration=True, float64=True,
+               assume_tcb=False):
     if float64:
         dtype = 'f8'
     else:
         dtype = 'f4'
 
     t = Time(visits['JD'].astype(dtype), format='jd', scale='utc')
+    if assume_tcb:
+        t = t.mjd
     rv = visits['VHELIO'].astype(dtype) * u.km/u.s
 
     if apply_error_calibration:

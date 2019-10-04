@@ -11,9 +11,11 @@ import h5py
 import numpy as np
 from tqdm import tqdm
 import yaml
+from scipy.special import logsumexp
 from thejoker.sampler.mcmc import TheJokerMCMCModel
 from thejoker.sampler.fast_likelihood import batch_marginal_ln_likelihood
 from thejoker.sampler.io import pack_prior_samples
+from thejoker.sampler.likelihood import ln_prior
 from schwimmbad import SerialPool
 from schwimmbad.mpi import MPIAsyncPool
 
@@ -25,6 +27,13 @@ from hq.script_helpers import get_parser
 from hq.mcmc_helpers import ln_normal, gelman_rubin
 from hq.samples_analysis import (max_phase_gap, phase_coverage,
                                  periods_spanned, phase_coverage_per_period)
+
+
+def compute_ll_lp(data, samples, joker_params):
+    chunk = np.ascontiguousarray(pack_prior_samples(samples, u.km/u.s)[0])
+    lls = np.array(batch_marginal_ln_likelihood(chunk, data, joker_params))
+    lps = np.array(ln_prior(samples, joker_params))
+    return lls, lps
 
 
 def worker(apogee_id, data, params, n_samples, chain_file):
@@ -52,15 +61,15 @@ def worker(apogee_id, data, params, n_samples, chain_file):
     MAP_sample = model.unpack_samples(flatchain[MAP_idx])[0]
     MAP_sample.t0 = data.t0
 
-    # But also compute the maximum likelihood sample and value:
-    #    First generate a "chunk" of nonlinear samples to pass to The Joker
-    #    likelihood machinery
+    # But also compute the maximum likelihood sample and value
     samples = model.unpack_samples(flatchain)
-    chunk, _ = pack_prior_samples(samples, data.rv.unit)
-    ll = batch_marginal_ln_likelihood(np.ascontiguousarray(chunk), data, params)
+    ll, lp = compute_ll_lp(data, samples, params)
     max_ll_idx = np.array(ll).argmax()
     max_ll_sample = model.unpack_samples(flatchain[max_ll_idx])[0]
     max_ll_sample.t0 = data.t0
+
+    # Compute the evidence, p(D), for the Kepler model using the emcee samples:
+    row['kepler_ln_evidence'] = logsumexp(ll + lp) - np.log(len(ll))
 
     flatchain_thin = np.vstack(chain)
     thin_samples = model.unpack_samples(flatchain_thin)
@@ -105,6 +114,8 @@ def worker(apogee_id, data, params, n_samples, chain_file):
     res['samples'] = samples
     res['apogee_id'] = apogee_id
     res['units'] = units
+    res['ln_prior'] = lp
+    res['ln_likelihood'] = ll
 
     return res
 
@@ -152,9 +163,8 @@ def main(run_name, pool):
             g = results_f.create_group(res['apogee_id'])
             res['samples'].to_hdf5(g)
 
-            # TODO: no support for prior / likelihood values...
-            # g.create_dataset('ln_prior', data=res['ln_prior'])
-            # g.create_dataset('ln_likelihood', data=res['ln_likelihood'])
+            g.create_dataset('ln_prior', data=res['ln_prior'])
+            g.create_dataset('ln_likelihood', data=res['ln_likelihood'])
 
     tbl = Table(rows)
 

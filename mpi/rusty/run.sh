@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH -J apogee
-#SBATCH -o apogee.o%j
-#SBATCH -e apogee.e%j
+#SBATCH -J apogee-run
+#SBATCH -o apogee-run.o%j
+#SBATCH -e apogee-run.e%j
 #SBATCH -n 720
 #SBATCH -t 72:00:00
 #SBATCH -p cca

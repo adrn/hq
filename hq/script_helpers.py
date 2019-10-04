@@ -25,7 +25,7 @@ def set_log_level(args, loggers):
         log_level = logging.ERROR
 
     else:
-        log_level = logging.INFO # default
+        log_level = logging.INFO  # default
 
     if not isiterable(loggers):
         loggers = [loggers]

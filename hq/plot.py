@@ -153,7 +153,7 @@ def plot_phase_fold(data, sample, ax=None, label=True,
                 linestyle='none', marker='o', color='k', markersize=5,
                 zorder=10)
 
-    if jitter_errorbar:
+    if jitter_errorbar and 'jitter' in sample:
         ax.errorbar(phase, rv.to(rv_unit).value,
                     np.sqrt(data.stddev**2 +
                             sample['jitter']**2).to(rv_unit).value,
