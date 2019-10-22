@@ -60,6 +60,7 @@ def worker(apogee_id, data, joker, poly_trend, n_requested_samples,
     else:
         row['unimodal'] = False
 
+    row['baseline'] = (data.t.mjd.max() - data.t.mjd.min()) * u.day
     row['max_phase_gap'] = max_phase_gap(MAP_sample[0], data)
     row['phase_coverage'] = phase_coverage(MAP_sample[0], data)
     row['periods_spanned'] = periods_spanned(MAP_sample[0], data)
