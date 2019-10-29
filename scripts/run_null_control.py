@@ -32,7 +32,7 @@ def main(run_name, pool, overwrite=False, seed=None):
     params = config_to_jokerparams(config)
     prior_cache_path = config_to_prior_cache(config, params)
     results_path = join(HQ_CACHE_PATH, run_name,
-                        'thejoker-control-{0}.hdf5'.format(run_name))
+                        'thejoker-control.hdf5')
 
     if not exists(prior_cache_path):
         raise IOError("Prior cache file '{0}' does not exist! Did you run "
