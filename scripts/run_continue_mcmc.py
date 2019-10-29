@@ -83,7 +83,8 @@ def main(run_name, pool, overwrite=False):
 
     # Load the analyzed joker samplings file, only keep unimodal:
     joker_metadata = QTable.read(join(HQ_CACHE_PATH, run_name, 'metadata.fits'))
-    unimodal_tbl = joker_metadata[joker_metadata['unimodal']]
+    unimodal_tbl = joker_metadata[joker_metadata['unimodal'] &
+                                  (joker_metadata['periods_spanned'] > 1.)]
 
     # Load the data:
     allstar, allvisit = config_to_alldata(config)
