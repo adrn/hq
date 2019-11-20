@@ -1,8 +1,10 @@
 # Third-party
+from astropy.time import Time
 import astropy.units as u
 import numpy as np
 from scipy.optimize import minimize
 from thejoker.sampler.mcmc import TheJokerMCMCModel
+from thejoker import JokerSamples
 
 __all__ = ['unimodal_P', 'max_likelihood_sample', 'MAP_sample', 'chisq',
            'max_phase_gap', 'phase_coverage', 'periods_spanned',
@@ -187,3 +189,20 @@ def constant_model_evidence(data):
                  np.log(sig2) + np.sum(vn**2 / sn**2) - mu**2 / sig2)
 
     return Z2
+
+
+def extract_MAP_orbit(row):
+    data = dict()
+    for colname in row.colnames:
+        if not colname.startswith('MAP_'):
+            continue
+        if colname.endswith('_err'):
+            continue
+        if colname[4:].startswith('ln_'):
+            continue
+
+        data[colname[4:]] = row[colname]
+
+    sample = JokerSamples(t0=Time(row['t0_bmjd'], format='mjd', scale='tcb'),
+                          **data)
+    return sample.get_orbit(0)
