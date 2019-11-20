@@ -2,7 +2,7 @@
 from astropy.time import Time
 import astropy.units as u
 import numpy as np
-from thejoker.data import RVData
+from thejoker import RVData
 from .log import logger
 
 
@@ -31,7 +31,7 @@ def get_rvdata(visits, apply_error_calibration=True, float64=True,
     else:
         rv_err = visits['VRELERR']
 
-    return RVData(t=t, rv=rv, stddev=rv_err.astype(dtype) * u.km/u.s)
+    return RVData(t=t, rv=rv, rv_err=rv_err.astype(dtype) * u.km/u.s)
 
 
 def filter_alldata(allstar_tbl, allvisit_tbl,
