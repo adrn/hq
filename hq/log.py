@@ -3,17 +3,19 @@ import logging
 
 # Third-party
 from astropy.logger import StreamHandler
-from astropy.utils import find_current_module
 
 __all__ = ['logger']
 
-Logger = logging.getLoggerClass()
-class HQLogger(Logger):
 
+class HQHandler(StreamHandler):
+    def emit(self, record):
+        record.origin = 'hq'
+        super().emit(record)
+
+
+class HQLogger(logging.getLoggerClass()):
     def _set_defaults(self):
-        """
-        Reset logger to its initial state
-        """
+        """Reset logger to its initial state"""
 
         # Remove all previous handlers
         for handler in self.handlers[:]:
@@ -23,23 +25,8 @@ class HQLogger(Logger):
         self.setLevel(logging.INFO)
 
         # Set up the stdout handler
-        sh = StreamHandler()
+        sh = HQHandler()
         self.addHandler(sh)
-
-    def makeRecord(self, name, level, pathname, lineno, msg, args, exc_info,
-                   func=None, extra=None, sinfo=None):
-        if extra is None:
-            extra = {}
-        if 'origin' not in extra:
-            current_module = find_current_module(1, finddiff=[True, 'logging'])
-            if current_module is not None:
-                extra['origin'] = current_module.__name__
-            else:
-                extra['origin'] = 'unknown'
-
-        return Logger.makeRecord(self, name, level, pathname, lineno, msg,
-                                 args, exc_info, func=func, extra=extra,
-                                 sinfo=sinfo)
 
 
 logging.setLoggerClass(HQLogger)
