@@ -7,7 +7,6 @@ import astropy.units as u
 import numpy as np
 
 # Project
-from thejoker import JokerParams
 from .log import logger
 from .data import filter_alldata
 
