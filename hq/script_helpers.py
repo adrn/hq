@@ -1,5 +1,6 @@
 from argparse import ArgumentParser
 import logging
+import os
 
 from astropy.utils.misc import isiterable
 
@@ -40,10 +41,16 @@ def get_parser(description="", loggers=None):
 
     class CustomArgumentParser(ArgumentParser):
 
-        def parse_args(self):
-            args = super().parse_args()
-            set_log_level(args, loggers)
-            return args
+        def parse_args(self, *args, **kwargs):
+            parsed = super().parse_args(*args, **kwargs)
+
+            if parsed.run_name == '':
+                raise ValueError("You must either specify a run name with the "
+                                 "command line argument --name, or by setting "
+                                 "the environment variable $HQ_RUN")
+
+            set_log_level(parsed, loggers)
+            return parsed
 
     # Define parser object
     parser = CustomArgumentParser(description=description)
@@ -53,5 +60,13 @@ def get_parser(description="", loggers=None):
                           dest='verbosity')
     vq_group.add_argument('-q', '--quiet', action='count', default=0,
                           dest='quietness')
+
+    parser.add_argument("--name", dest="run_name",
+                        default=os.environ.get('HQ_RUN', ''),
+                        type=str, help="The name of the run.")
+
+    parser.add_argument("-o", "--overwrite", dest="overwrite", default=False,
+                        action="store_true",
+                        help="Overwrite any existing results for this run.")
 
     return parser

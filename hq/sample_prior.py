@@ -1,7 +1,5 @@
 import os
-import astropy.units as u
 import h5py
-import numpy as np
 
 __all__ = ['make_prior_cache']
 
@@ -29,7 +27,7 @@ def make_prior_cache(filename, prior, n_total_samples, batch_size=None):
     batch_size = int(batch_size)
 
     # first just make an empty file
-    with h5py.File(filename, 'w') as f:
+    with h5py.File(filename, 'w'):
         pass
 
     num_added = 0

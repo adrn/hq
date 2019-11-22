@@ -1,36 +1,26 @@
 # Standard library
 from os import path
 
-# Third-party
-import yaml
-from thejoker import TheJoker
-
 # Project
-from hq.config import (HQ_CACHE_PATH, config_to_jokerparams,
-                       config_to_prior_cache)
+from hq.config import Config
 from hq.log import logger
 from hq.script_helpers import get_parser
 from hq.sample_prior import make_prior_cache
 
 
-def main(name, overwrite):
-    run_path = path.join(HQ_CACHE_PATH, name)
+def main(name, overwrite, batch_size):
+    c = Config.from_run_name(name)
 
-    with open(path.join(run_path, 'config.yml'), 'r') as f:
-        config = yaml.load(f.read())
-
-    params = config_to_jokerparams(config)
-    prior_cache_path = config_to_prior_cache(config, params)
-
-    if path.exists(prior_cache_path) and not overwrite:
-        logger.debug("Prior cache file already exists at '{}'! User -o or "
-                     "--overwrite to re-generate.".format(prior_cache_path))
+    if path.exists(c.prior_cache_file) and not overwrite:
+        logger.debug(f"Prior cache file already exists at "
+                     f"{c.prior_cache_file}! Use -o / --overwrite "
+                     f"to re-generate.")
         return
 
-    n_samples = config['prior']['n_samples']
-    logger.debug("Prior samples file not found - generating {} samples in "
-                 "cache file at {}...".format(n_samples, prior_cache_path))
-    make_prior_cache(prior_cache_path, TheJoker(params), nsamples=n_samples)
+    logger.debug("Prior samples file not found: generating {c.n_prior_samples} "
+                 "samples in cache file at {c.prior_cache_file}")
+    make_prior_cache(c.prior_cache_file, c.prior, c.n_prior_samples,
+                     batch_size=batch_size)
     logger.debug("...done generating cache.")
 
 
@@ -42,12 +32,10 @@ if __name__ == "__main__":
                                     'and edit the configuration.',
                         loggers=logger)
 
-    parser.add_argument("--name", dest="run_name", required=True,
-                        type=str, help="The name of the run.")
-    parser.add_argument("-o", "--overwrite", dest="overwrite", default=False,
-                        action="store_true",
-                        help="Overwrite any existing results for this run.")
+    parser.add_argument("--batch_size", dest="batch_size", type=int,
+                        default=None,
+                        help="The number of samples to generate in each batch.")
 
     args = parser.parse_args()
 
-    main(args.run_name, args.overwrite)
+    main(args.run_name, args.overwrite, args.batch_size)

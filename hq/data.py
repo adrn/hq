@@ -88,4 +88,7 @@ def filter_alldata(allstar_tbl, allvisit_tbl,
     _, idx = np.unique(allstar_tbl['APOGEE_ID'], return_index=True)
     allstar_tbl = allstar_tbl[idx]
 
+    allvisit_tbl = allvisit_tbl[np.isin(allvisit_tbl['APOGEE_ID'],
+                                        allstar_tbl['APOGEE_ID'])]
+
     return allstar_tbl, allvisit_tbl

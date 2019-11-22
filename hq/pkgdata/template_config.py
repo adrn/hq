@@ -47,7 +47,7 @@ with pm.Model() as model:
   )
 
 ## Number of prior samples to generate and cache:
-n_samples = 500_000_000
+n_prior_samples = 500_000_000
 
 ## Name of the prior cache file:
 prior_cache_file = f'prior_samples_{n_samples}_{name}.hdf5'

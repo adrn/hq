@@ -43,11 +43,33 @@ class Config:
             if not hasattr(self, name):
                 raise ValueError(f"You must specify a config value for {name}")
 
+        if os.path.abspath(self.prior_cache_file) != self.prior_cache_file:
+            self.prior_cache_file = os.path.join(self.run_path,
+                                                 self.prior_cache_file)
+
+    @classmethod
+    def from_run_name(cls, name):
+        return cls(os.path.join(HQ_CACHE_PATH, name, 'config.py'))
+
+    # ------------------------------------------------------------------------
+    # Paths:
+
     @property
-    def cache_path(self):
+    def run_path(self):
         _path = os.path.join(HQ_CACHE_PATH, self.name)
         os.makedirs(_path, exist_ok=True)
         return _path
+
+    @property
+    def joker_results_path(self):
+        return os.path.join(self.run_path, 'thejoker-samples.hdf5')
+
+    @property
+    def tasks_path(self):
+        return os.path.join(self.run_path, 'tmp-tasks.hdf5')
+
+    # ------------------------------------------------------------------------
+    # Data loading:
 
     def _load_data(self):
         allstar = fits.getdata(self.allstar_filename)
