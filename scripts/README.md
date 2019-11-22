@@ -21,6 +21,6 @@
 * `cd <hq repo>/scripts`
 * `python make_run.py --name hqtest`
 * `cp ../hq/pkgdata/_test_config.py ~/.hq/hqtest/config.py`
-* `python make_tasks.py --name hqtest`
 * `python make_prior_cache.py --name hqtest`
+* `python make_tasks.py --name hqtest`
 * `python run_apogee.py --name hqtest`

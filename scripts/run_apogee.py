@@ -6,8 +6,8 @@ import time
 # Third-party
 import h5py
 import numpy as np
-from thejoker.logging import log as joker_logger
-from thejoker.sampler import TheJoker
+from thejoker.logging import logger as joker_logger
+from thejoker import TheJoker
 from tqdm import tqdm
 from schwimmbad import SerialPool
 from thejoker.data import RVData
@@ -18,7 +18,9 @@ from hq.config import Config
 from hq.script_helpers import get_parser
 
 
-def worker(joker, apogee_id, data, c):
+def worker(task):
+    joker, apogee_id, data, c = task
+
     t0 = time.time()
     logger.log(1, "{0}: Starting sampling".format(apogee_id))
 
@@ -66,7 +68,7 @@ def callback(future):
 
 
 def main(run_name, pool, overwrite=False, seed=None):
-    c = Config.from_name(run_name)
+    c = Config.from_run_name(run_name)
 
     if not os.path.exists(c.prior_cache_file):
         raise IOError(f"Prior cache file {c.prior_cache_file} does not exist! "
@@ -102,7 +104,7 @@ def main(run_name, pool, overwrite=False, seed=None):
     tasks = []
     with h5py.File(c.tasks_path, 'r') as tasks_f:
         for apogee_id in tasks_f:
-            data = RVData.from_hdf5(tasks_f[apogee_id])
+            data = RVData.from_timeseries(tasks_f[apogee_id])
             tasks.append((apogee_id, data))
 
     logger.debug("Loading data and preparing tasks...")
@@ -116,7 +118,7 @@ def main(run_name, pool, overwrite=False, seed=None):
     logger.info('Done preparing tasks: {0} stars in process queue'
                 .format(len(tasks)))
 
-    for r in tqdm(pool.starmap(worker, full_tasks, callback=callback),
+    for r in tqdm(pool.map(worker, full_tasks, callback=callback),
                   total=len(full_tasks)):
         pass
 

@@ -38,7 +38,7 @@ def main(run_name, pool, overwrite=False):
             data = get_rvdata(visits)
 
             g = f.create_group(apogee_id)
-            data.tbl.write(g, format='hdf5')
+            data.to_timeseries().write(g, format='hdf5', serialize_meta=True)
 
     logger.info('Done preparing tasks: {0} stars in process queue'
                 .format(len(apogee_ids)))
