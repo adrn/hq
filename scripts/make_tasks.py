@@ -6,7 +6,7 @@ import sys
 from astropy.table import Table
 import h5py
 import numpy as np
-from thejoker.logging import log as joker_logger
+from thejoker.logging import logger as joker_logger
 from tqdm import tqdm
 from schwimmbad import SerialPool
 
@@ -18,7 +18,7 @@ from hq.script_helpers import get_parser
 
 
 def main(run_name, pool, overwrite=False):
-    c = Config.from_name(run_name)
+    c = Config.from_run_name(run_name)
 
     if path.exists(c.tasks_path) and not overwrite:
         logger.info(f"File {c.tasks_path} already exists: Use -o/--overwrite if"
@@ -38,7 +38,7 @@ def main(run_name, pool, overwrite=False):
             data = get_rvdata(visits)
 
             g = f.create_group(apogee_id)
-            data.to_hdf5(g)
+            data.tbl.write(g, format='hdf5')
 
     logger.info('Done preparing tasks: {0} stars in process queue'
                 .format(len(apogee_ids)))

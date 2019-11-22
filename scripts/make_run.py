@@ -30,7 +30,7 @@ def make_run(name):
     with open(new_config_path, 'w') as f:
         f.write(template_config)
 
-    logger.info(f"Creates an HQ run at: {run_path}\n\tNow edit the "
+    logger.info(f"Created an HQ run at: {run_path}\n\tNow edit the "
                 f"configuration file at: {new_config_path}")
 
 
@@ -42,9 +42,5 @@ if __name__ == "__main__":
                                     'and edit the configuration.',
                         loggers=logger)
 
-    parser.add_argument("--name", dest="run_name", required=True,
-                        type=str, help="The name of the run.")
-
     args = parser.parse_args()
-
     make_run(args.run_name)
