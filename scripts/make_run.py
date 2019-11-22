@@ -1,6 +1,5 @@
 # Standard library
 import os
-from os import path
 
 # Project
 import hq
@@ -9,10 +8,10 @@ from hq.log import logger
 from hq.script_helpers import get_parser
 
 
-def make_run(name, allstar, allvisit):
-    run_path = path.join(HQ_CACHE_PATH, name)
+def make_run(name):
+    run_path = os.path.join(HQ_CACHE_PATH, name)
 
-    if path.exists(run_path):
+    if os.path.exists(run_path):
         logger.debug("Run already exists at '{}'! Delete that path and re-run "
                      "if you want to create a new run with this name."
                      .format(run_path))
@@ -22,15 +21,17 @@ def make_run(name, allstar, allvisit):
     os.makedirs(run_path)
 
     # Now copy in the template configuration file:
-    HQ_ROOT_PATH = path.split(hq.__file__)[0]
-    with open(path.join(HQ_ROOT_PATH, 'template_config.yml'), 'r') as f:
+    HQ_ROOT_PATH = os.path.split(hq.__file__)[0]
+    tmpl = os.path.join(HQ_ROOT_PATH, 'pkgdata', 'template_config.py')
+    with open(tmpl, 'r') as f:
         template_config = f.read()
 
-    with open(path.join(run_path, 'config.yml'), 'w') as f:
-        f.write(template_config.format(
-            run_name=name,
-            allstar=path.abspath(path.expanduser(allstar)),
-            allvisit=path.abspath(path.expanduser(allvisit))))
+    new_config_path = os.path.join(run_path, 'config.py')
+    with open(new_config_path, 'w') as f:
+        f.write(template_config)
+
+    logger.info(f"Creates an HQ run at: {run_path}\n\tNow edit the "
+                f"configuration file at: {new_config_path}")
 
 
 if __name__ == "__main__":
@@ -43,11 +44,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--name", dest="run_name", required=True,
                         type=str, help="The name of the run.")
-    parser.add_argument("--allstar", dest="allstar", required=True,
-                        type=str, help="Path to the allStar file.")
-    parser.add_argument("--allvisit", dest="allvisit", required=True,
-                        type=str, help="Path to the allVisit file.")
 
     args = parser.parse_args()
 
-    make_run(args.run_name, args.allstar, args.allvisit)
+    make_run(args.run_name)

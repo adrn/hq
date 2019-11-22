@@ -11,6 +11,10 @@ __all__ = ['unimodal_P', 'max_likelihood_sample', 'MAP_sample', 'chisq',
            'phase_coverage_per_period', 'optimize_mode']
 
 
+def ln_normal(x, mu, var):
+    return -0.5 * (np.log(2*np.pi * var) + (x - mu)**2 / var)
+
+
 def unimodal_P(samples, data):
     """Check whether the samples returned are within one period mode.
 
@@ -31,8 +35,9 @@ def unimodal_P(samples, data):
     return np.ptp(P_samples) < delta
 
 
-def chisq(data, samples):
-    """Return the chi squared of the samples.
+def ln_likelihood(data, samples):
+    """
+    Compute the un-marginalized likelihood.
 
     Parameters
     ----------
@@ -40,15 +45,16 @@ def chisq(data, samples):
     samples : `~thejoker.JokerSamples`
 
     """
-    chisqs = np.zeros(len(samples))
+    lls = np.zeros(len(samples))
 
     for i in range(len(samples)):
         orbit = samples.get_orbit(i)
-        residual = data.rv - orbit.radial_velocity(data.t)
-        err = np.sqrt(data.stddev**2 + samples['jitter'][i]**2)
-        chisqs[i] = np.sum((residual**2 / err**2).decompose())
+        var = data.stddev**2 + samples['s'][i]**2
+        lls[i] = ln_likelihood(data.rv,
+                               orbit.radial_velocity(data.t),
+                               var).decompose()
 
-    return chisqs
+    return lls
 
 
 def max_likelihood_sample(data, samples):
@@ -60,32 +66,30 @@ def max_likelihood_sample(data, samples):
     samples : `~thejoker.JokerSamples`
 
     """
-    return samples[np.argmin(chisq(data, samples))]
+    return samples[np.argmax(ln_likelihood(data, samples))]
 
 
-def MAP_sample(data, samples, joker_params, return_index=False):
+def MAP_sample(samples, return_index=False):
     """Return the maximum a posteriori sample.
 
     Parameters
     ----------
-    data : `~thejoker.RVData`
     samples : `~thejoker.JokerSamples`
-    joker_params : `~thejoker.JokerParams`
 
     """
-    model = TheJokerMCMCModel(joker_params, data)
+    if ('ln_prior' not in samples.tbl.colnames
+            or 'ln_likelihood' not in samples.tbl.colnames):
+        raise ValueError("You must pass in samples that have prior and "
+                         "likelihood information stored; use return_logprobs="
+                         "True when generating the samples.")
 
-    ln_ps = np.zeros(len(samples))
-
-    mcmc_p = model.pack_samples_mcmc(samples)
-    for i in range(len(samples)):
-        ln_ps[i] = model.ln_posterior(mcmc_p[i])
+    ln_post = samples['ln_prior'] + samples['ln_likelihood']
+    idx = np.argmax(ln_post)
 
     if return_index:
-        idx = np.argmax(ln_ps)
         return samples[idx], idx
     else:
-        return samples[np.argmax(ln_ps)]
+        return samples[idx]
 
 
 def max_phase_gap(sample, data):
@@ -111,7 +115,12 @@ def phase_coverage(sample, data, n_bins=10):
     sample : `~thejoker.JokerSamples`
     data : `~thejoker.RVData`
     """
-    H, _ = np.histogram(data.phase(sample['P']),
+    if len(sample) == 1:
+        P = sample['P'][0]
+    else:
+        P = sample['P']
+
+    H, _ = np.histogram(data.phase(P),
                         bins=np.linspace(0, 1, n_bins+1))
     return (H > 0).sum() / n_bins
 
@@ -124,8 +133,13 @@ def periods_spanned(sample, data):
     sample : `~thejoker.JokerSamples`
     data : `~thejoker.RVData`
     """
+    if len(sample) == 1:
+        P = sample['P'][0]
+    else:
+        P = sample['P']
+
     T = data.t.jd.max() - data.t.jd.min()
-    return T / sample['P'].to_value(u.day)
+    return T / P.to_value(u.day)
 
 
 def phase_coverage_per_period(sample, data):
@@ -136,8 +150,13 @@ def phase_coverage_per_period(sample, data):
     sample : `~thejoker.JokerSamples`
     data : `~thejoker.RVData`
     """
+    if len(sample) == 1:
+        P = sample['P'][0]
+    else:
+        P = sample['P']
+
     dt = (data.t - data.t0).to(u.day)
-    phase = dt / sample['P']
+    phase = dt / P
     H1, _ = np.histogram(phase, bins=np.arange(0, phase.max()+1, 1))
     H2, _ = np.histogram(phase, bins=np.arange(-0.5, phase.max()+1, 1))
     return max(H1.max(), H2.max())
@@ -147,6 +166,8 @@ def optimize_mode(init_sample, data, joker, minimize_kwargs=None,
                   return_logprobs=False):
     """Compute the maximum likelihood value within the mode that
     the specified sample is in.
+
+    TODO: rewrite this
 
     """
     model = TheJokerMCMCModel(joker.params, data)

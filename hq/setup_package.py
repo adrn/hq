@@ -1,3 +1,3 @@
 
 def get_package_data():
-    return {'hq': ['template_config.yml']}
+    return {'hq': ['pkgdata/template_config.py']}
