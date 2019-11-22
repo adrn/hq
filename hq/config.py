@@ -4,14 +4,12 @@ import importlib.util as iu
 
 # Third-party
 from astropy.io import fits
-import astropy.units as u
-import numpy as np
 
 # Project
 from .log import logger
 from .data import filter_alldata
 
-__all__ = ['config_to_jokerparams']
+__all__ = ['HQ_CACHE_PATH', 'Config']
 
 HQ_CACHE_PATH = os.path.expanduser(
     os.environ.get("HQ_CACHE_PATH", os.path.join("~", ".hq")))
