@@ -27,9 +27,9 @@ def worker(task):
 
     try:
         samples = joker.iterative_rejection_sample(
-            data=data, n_requested_samples=c.requested_samples_per_star,
-            prior_samples=c.prior_cache_file,
-            randomize_prior_order=c.randomize_prior_order,
+            data=data, n_requested_samples=c['requested_samples_per_star'],
+            prior_samples=c['prior_cache_file'],
+            randomize_prior_order=c['randomize_prior_order'],
             return_logprobs=True)
     except Exception as e:
         logger.warning("\t Failed sampling for star {0} \n Error: {1}"
@@ -46,7 +46,7 @@ def worker(task):
     res = dict()
     res['apogee_id'] = apogee_id
     res['samples'] = samples
-    res['results_filename'] = c.joker_results_path
+    res['results_filename'] = c['joker_results_path']
     return res
 
 
@@ -72,7 +72,7 @@ def callback(future):
                                                            len(res['samples'])))
 
 
-def main(run_name, pool, overwrite=False, seed=None):
+def main(run_name, pool, overwrite=False, seed=None, limit=None):
     c = Config.from_run_name(run_name)
 
     if not os.path.exists(c.prior_cache_file):
@@ -105,11 +105,21 @@ def main(run_name, pool, overwrite=False, seed=None):
     with h5py.File(c.joker_results_path, 'a') as results_f:
         processed_ids = list(results_f.keys())
 
+    apogee_ids = np.unique(allstar['APOGEE_ID'])
+    apogee_ids = apogee_ids[~np.isin(apogee_ids, processed_ids)]
+    if limit is not None:
+        apogee_ids = apogee_ids[:limit]
+
     tasks = []
     with h5py.File(c.tasks_path, 'r') as tasks_f:
-        for apogee_id in tasks_f:
+        for apogee_id in apogee_ids:
             data = RVData.from_timeseries(tasks_f[apogee_id])
             tasks.append((apogee_id, data))
+
+    c_dict = {'requested_samples_per_star': c.requested_samples_per_star,
+              'prior_cache_file': c.prior_cache_file,
+              'randomize_prior_order': c.randomize_prior_order,
+              'joker_results_path': c.joker_results_path}
 
     logger.debug("Loading data and preparing tasks...")
     full_tasks = []
@@ -117,7 +127,7 @@ def main(run_name, pool, overwrite=False, seed=None):
         if apogee_id in processed_ids and not overwrite:
             continue
 
-        full_tasks.append([joker, apogee_id, data, c])
+        full_tasks.append([joker, apogee_id, data, c_dict])
 
     logger.info('Done preparing tasks: {0} stars in process queue'
                 .format(len(tasks)))
@@ -135,6 +145,9 @@ if __name__ == '__main__':
     parser.add_argument("-s", "--seed", dest="seed", default=None, type=int,
                         help="Random number seed")
 
+    parser.add_argument("--limit", dest="limit", default=None,
+                        type=int, help="Maximum number of stars to process")
+
     args = parser.parse_args()
 
     seed = args.seed
@@ -144,6 +157,6 @@ if __name__ == '__main__':
 
     with args.Pool(**args.Pool_kwargs) as pool:
         main(run_name=args.run_name, pool=pool, overwrite=args.overwrite,
-             seed=args.seed)
+             seed=args.seed, limit=args.limit)
 
     sys.exit(0)
