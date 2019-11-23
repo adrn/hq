@@ -1,20 +1,20 @@
 # Standard library
-from os import path
+import os
 import sys
 
 # Third-party
 from astropy.table import Table
+import astropy.units as u
 import h5py
 import numpy as np
 from thejoker.logging import logger as joker_logger
 from tqdm import tqdm
-import yaml
 from scipy.optimize import minimize
 from thejoker.data import RVData
 
 # Project
 from hq.log import logger
-from hq.config import HQ_CACHE_PATH, config_to_alldata
+from hq.config import Config
 from hq.script_helpers import get_parser
 
 
@@ -22,14 +22,12 @@ def ln_normal(x, mu, var):
     return -0.5 * (np.log(2*np.pi * var) + (x - mu)**2 / var)
 
 
-def ln_likelihood_robust(p, data):
+def ln_likelihood_robust(p, rv, var):
     mu, lns2, f = p
-
-    rv = data.rv.value.astype('f8')
-    var = data.stddev.value.astype('f8') ** 2
-
-    return np.logaddexp(np.log(f) + ln_normal(rv, mu, var),
-                        np.log(1-f) + ln_normal(rv, mu, var + np.exp(lns2))).sum()
+    return np.logaddexp(
+        np.log(f) + ln_normal(rv, mu, var),
+        np.log(1-f) + ln_normal(rv, mu, var + np.exp(lns2))
+    ).sum()
 
 
 def neg_ln_likelihood(*args, **kwargs):
@@ -37,15 +35,18 @@ def neg_ln_likelihood(*args, **kwargs):
 
 
 def worker(apogee_id, data):
+    rv = data.rv.to_value(u.km/u.s).astype('f8')
+    var = data.rv_err.to_value(u.km/u.s).astype('f8') ** 2
+
     # First optimize the negative log-likelihood for the robust constant model:
     res = minimize(neg_ln_likelihood,
-                   x0=(np.mean(data.rv.value.astype('f8')), -4, 0.75),
-                   args=(data, ), method='L-BFGS-B',
+                   x0=(np.mean(rv.astype('f8')), -4, 0.75),
+                   args=(rv, var), method='L-BFGS-B',
                    bounds=[(-500, 500), (-10, 8), (0.5, 1.)],
                    options=dict(ftol=1e-11))
     ll_robust = -res.fun
 
-    opt_mu = np.sum(data.rv.value / data.stddev.value**2) / np.sum(1 / data.stddev.value**2)
+    opt_mu = np.sum(rv/var) / np.sum(1/var)
     ll_basic = ln_likelihood_robust([opt_mu, -8, 1], data)
 
     resp = dict()
@@ -57,32 +58,24 @@ def worker(apogee_id, data):
 
 
 def main(run_name, pool, overwrite=False, seed=None):
-    run_path = path.join(HQ_CACHE_PATH, run_name)
-    with open(path.join(run_path, 'config.yml'), 'r') as f:
-        config = yaml.load(f.read())
+    c = Config.from_run_name(run_name)
 
-    # Get paths to files needed to run
-    # TODO: doesn't handle jitter!
-    results_path = path.join(HQ_CACHE_PATH, run_name, 'constant.fits')
-    tasks_path = path.join(HQ_CACHE_PATH, run_name, 'tmp-tasks.hdf5')
+    # Get paths to files needed to run:
+    results_path = os.path.join(c.run_path, 'constant.fits')
 
-    if path.exists(results_path) and not overwrite:
+    if os.path.exists(results_path) and not overwrite:
         logger.info("Results file {} already exists. Use --overwrite if needed"
                     .format(results_path))
         return
 
-    if not path.exists(tasks_path):
+    if not os.path.exists(c.tasks_path):
         raise IOError("Tasks file '{0}' does not exist! Did you run "
                       "make_tasks.py?")
 
-    # Get data files out of config file:
-    allstar, allvisit = config_to_alldata(config)
-    allvisit = allvisit[np.isin(allvisit['APOGEE_ID'], allstar['APOGEE_ID'])]
-
     tasks = []
-    with h5py.File(tasks_path, 'r') as tasks_f:
+    with h5py.File(c.tasks_path, 'r') as tasks_f:
         for apogee_id in tasks_f:
-            data = RVData.from_hdf5(tasks_f[apogee_id])
+            data = RVData.from_timeseries(tasks_f[apogee_id])
             tasks.append((apogee_id, data))
 
     logger.info('Done preparing tasks: {0} stars in process queue'
@@ -101,32 +94,12 @@ if __name__ == '__main__':
     parser = get_parser(description='Run The Joker on APOGEE data',
                         loggers=[logger, joker_logger])
 
-    parser.add_argument("--name", dest="run_name", required=True,
-                        type=str, help="The name of the run.")
-
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument("--procs", dest="n_procs", default=1,
-                       type=int, help="Number of processes.")
-    group.add_argument("--mpi", dest="mpi", default=False,
-                       action="store_true", help="Run with MPI.")
-
     parser.add_argument("-s", "--seed", dest="seed", default=None, type=int,
                         help="Random number seed")
 
-    parser.add_argument("-o", "--overwrite", dest="overwrite", default=False,
-                        action="store_true",
-                        help="Overwrite any existing samplings")
-
     args = parser.parse_args()
 
-    if args.mpi:
-        from schwimmbad.mpi import MPIAsyncPool
-        Pool = MPIAsyncPool
-    else:
-        from schwimmbad import SerialPool
-        Pool = SerialPool
-
-    with Pool() as pool:
+    with args.Pool(**args.Pool_kwargs) as pool:
         main(run_name=args.run_name, pool=pool, overwrite=args.overwrite,
              seed=args.seed)
 
