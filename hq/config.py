@@ -43,6 +43,10 @@ class Config:
             if not hasattr(self, name):
                 raise ValueError(f"You must specify a config value for {name}")
 
+        # Normalize paths:
+        if os.path.abspath(self.prior_file) != self.prior_file:
+            self.prior_file = os.path.join(self.run_path, self.prior_file)
+
         if os.path.abspath(self.prior_cache_file) != self.prior_cache_file:
             self.prior_cache_file = os.path.join(self.run_path,
                                                  self.prior_cache_file)
@@ -97,3 +101,15 @@ class Config:
             d = self._allvisit
 
         return d
+
+    @property
+    def prior(self):
+        try:
+            p = self._prior
+        except AttributeError:
+            spec = iu.spec_from_file_location("prior", self.prior_file)
+            user_prior = iu.module_from_spec(spec)
+            spec.loader.exec_module(user_prior)
+            self._prior = user_prior.prior
+            p = self._prior
+        return p
