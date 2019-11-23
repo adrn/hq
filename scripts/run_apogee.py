@@ -9,7 +9,6 @@ import numpy as np
 from thejoker.logging import logger as joker_logger
 from thejoker import TheJoker
 from tqdm import tqdm
-from schwimmbad import SerialPool
 from thejoker.data import RVData
 
 # Project
@@ -143,6 +142,7 @@ if __name__ == '__main__':
         from schwimmbad.mpi import MPIAsyncPool
         Pool = MPIAsyncPool
     else:
+        from schwimmbad import SerialPool
         Pool = SerialPool
 
     seed = args.seed
