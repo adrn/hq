@@ -43,7 +43,8 @@ def filter_alldata(allstar_tbl, allvisit_tbl,
     allvisit_tbl = allvisit_tbl[np.isfinite(allvisit_tbl['VHELIO']) &
                                 np.isfinite(allvisit_tbl['VRELERR'])]
     allvisit_tbl = allvisit_tbl[(allvisit_tbl['VRELERR'] < 100.) &
-                                (allvisit_tbl['VHELIO'] != -9999)]
+                                (allvisit_tbl['VHELIO'] != -9999) &
+                                (np.abs(allvisit_tbl['VHELIO']) < 1e3)]
     logger.log(1, "Filtered bad/NaN/-9999 data")
     logger.log(1, "Min. number of visits: {0}".format(min_nvisits))
 

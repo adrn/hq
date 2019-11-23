@@ -56,8 +56,10 @@ def main(run_name, pool, overwrite=False):
 
     # Load the data:
     allstar, allvisit = c.load_alldata()
-    allstar = allstar[np.isin(allstar['APOGEE_ID'], unimodal_tbl['APOGEE_ID'])]
-    allvisit = allvisit[np.isin(allvisit['APOGEE_ID'], allstar['APOGEE_ID'])]
+    allstar = allstar[np.isin(allstar['APOGEE_ID'].astype(str),
+                              unimodal_tbl['APOGEE_ID'].astype(str))]
+    allvisit = allvisit[np.isin(allvisit['APOGEE_ID'].astype(str),
+                                allstar['APOGEE_ID'].astype(str))]
 
     joker = tj.TheJoker(c.prior)
     sample_kw = dict(tune=c.tune, draws=c.draws)
