@@ -26,9 +26,10 @@ def main(run_name, pool, overwrite=False):
         return
 
     # Load the full allvisit file, but only some columns:
+    _, _allvisit = c.load_alldata()
     allvisit = Table()
     for k in ['APOGEE_ID', 'JD', 'VHELIO', 'VRELERR', 'SNR']:
-        allvisit[k] = c.allvisit[k]
+        allvisit[k] = _allvisit[k]
 
     logger.debug("Loading data and preparing tasks...")
     apogee_ids = np.unique(c.allstar['APOGEE_ID'])

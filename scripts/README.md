@@ -18,10 +18,14 @@
 
 ## Testing:
 
+* `export HQ_CACH_PATH='/Users/apricewhelan/.hq'`
 * `cd <hq repo>/scripts`
 * `python make_run.py --name hqtest`
-* `cp ../hq/pkgdata/_test_config.py ~/.hq/hqtest/config.py`
-* `cp ../hq/pkgdata/_test_prior.py ~/.hq/hqtest/prior.py`
+* `cp ../hq/pkgdata/_test_config.py $HQ_CACHE_PATH/hqtest/config.py`
+* `cp ../hq/pkgdata/_test_prior.py $HQ_CACHE_PATH/hqtest/prior.py`
 * `python make_prior_cache.py --name hqtest`
 * `python make_tasks.py --name hqtest`
-* `python run_apogee.py --name hqtest`
+* `python run_apogee.py --name hqtest -o`
+* `python run_fit_constant.py --name hqtest -o`
+* `python analyze_joker_samplings.py --name hqtest -o`
+* `python run_continue_mcmc.py --name hqtest -o`

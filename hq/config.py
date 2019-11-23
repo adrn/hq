@@ -72,35 +72,19 @@ class Config:
     def tasks_path(self):
         return os.path.join(self.run_path, 'tmp-tasks.hdf5')
 
+    @property
+    def metadata_path(self):
+        return os.path.join(self.run_path, 'metadata.fits')
+
     # ------------------------------------------------------------------------
     # Data loading:
 
-    def _load_data(self):
+    def load_alldata(self):
         allstar = fits.getdata(self.allstar_filename)
         allvisit = fits.getdata(self.allvisit_filename)
+        allstar, allvisit = filter_alldata(allstar, allvisit,
+                                           min_nvisits=self.min_nvisits)
         return allstar, allvisit
-
-    @property
-    def allstar(self):
-        try:
-            d = self._allstar
-        except AttributeError:
-            self._allstar, self._allvisit = filter_alldata(
-                *self._load_data(), min_nvisits=self.min_nvisits)
-            d = self._allstar
-
-        return d
-
-    @property
-    def allvisit(self):
-        try:
-            d = self._allvisit
-        except AttributeError:
-            self._allstar, self._allvisit = filter_alldata(
-                *self._load_data(), min_nvisits=self.min_nvisits)
-            d = self._allvisit
-
-        return d
 
     @property
     def prior(self):

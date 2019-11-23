@@ -43,6 +43,9 @@ prior_cache_file = f'prior_samples_{n_prior_samples}_{name}.hdf5'
 ## The number of posterior samples to generate per source:
 requested_samples_per_star = 1024
 
+## Randomly draw samples from the prior cache. This will slow things down!
+randomize_prior_order = False
+
 
 ##############################################################################
 ## Sampling parameters for MCMC:

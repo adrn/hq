@@ -28,7 +28,8 @@ def worker(task):
     try:
         samples = joker.iterative_rejection_sample(
             data=data, n_requested_samples=c.requested_samples_per_star,
-            prior_samples=c.prior_cache_file, randomize_prior_order=True,
+            prior_samples=c.prior_cache_file,
+            randomize_prior_order=c.randomize_prior_order,
             return_logprobs=True)
     except Exception as e:
         logger.warning("\t Failed sampling for star {0} \n Error: {1}"
@@ -38,6 +39,9 @@ def worker(task):
     logger.debug("{0}: done sampling - {1} raw samples returned "
                  "({2:.2f} seconds)".format(apogee_id, len(samples),
                                             time.time() - t0))
+
+    # Ensure only positive K values
+    samples.wrap_K()
 
     res = dict()
     res['apogee_id'] = apogee_id
@@ -86,8 +90,7 @@ def main(run_name, pool, overwrite=False, seed=None):
         done_apogee_ids = list()
 
     # Get data files out of config file:
-    allstar = c.allstar
-    allvisit = c.allvisit
+    allstar, allvisit = c.load_alldata()
     allstar = allstar[~np.isin(allstar['APOGEE_ID'], done_apogee_ids)]
     allvisit = allvisit[np.isin(allvisit['APOGEE_ID'], allstar['APOGEE_ID'])]
 

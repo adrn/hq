@@ -47,7 +47,7 @@ def worker(apogee_id, data):
     ll_robust = -res.fun
 
     opt_mu = np.sum(rv/var) / np.sum(1/var)
-    ll_basic = ln_likelihood_robust([opt_mu, -8, 1], data)
+    ll_basic = ln_likelihood_robust([opt_mu, -8, 1], rv, var)
 
     resp = dict()
     resp['APOGEE_ID'] = apogee_id

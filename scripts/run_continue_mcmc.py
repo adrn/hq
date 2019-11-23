@@ -1,95 +1,66 @@
 # Standard library
 import os
-from os.path import join, exists
 import sys
 import time
-import pickle
 
 # Third-party
 from astropy.table import QTable
-import matplotlib.pyplot as plt
 import numpy as np
-from thejoker.log import log as joker_logger
-from thejoker.sampler import TheJoker, JokerSamples
+from thejoker.logging import logger as joker_logger
+import thejoker as tj
 from tqdm import tqdm
-import yaml
-from schwimmbad import SerialPool
-from schwimmbad.mpi import MPIAsyncPool
 
 # Project
 from hq.data import get_rvdata
 from hq.log import logger
-from hq.plot import plot_mcmc_diagnostic
-from hq.config import (HQ_CACHE_PATH, config_to_jokerparams, config_to_alldata)
+from hq.config import Config
 from hq.script_helpers import get_parser
+from hq.samples_analysis import extract_MAP_sample
 
 
-def worker(joker, apogee_id, data, config, MAP_sample, emcee_cache_path,
-           overwrite):
-    chain_file = join(emcee_cache_path, '{0}.npz'.format(apogee_id))
-    plot_file = join(emcee_cache_path, '{0}.png'.format(apogee_id))
-    model_file = join(emcee_cache_path, 'model.pickle')
+def worker(apogee_id, data, joker, MAP_sample, mcmc_cache_path, sample_kw):
+    import pymc3 as pm
+    import exoplanet as xo
 
-    emcee_sampler = None
-    if not exists(chain_file) or overwrite:
-        t0 = time.time()
-        logger.log(1, "{0}: Starting emcee sampling".format(apogee_id))
+    this_cache_path = os.path.join(mcmc_cache_path, apogee_id)
 
-        try:
-            model, samples, emcee_sampler = joker.mcmc_sample(
-                data, MAP_sample,
-                n_burn=config['emcee']['n_burn'],
-                n_steps=config['emcee']['n_steps'],
-                n_walkers=config['emcee']['n_walkers'],
-                return_sampler=True)
-        except Exception as e:
-            logger.warning("\t Failed emcee sampling for star {0} \n Error: {1}"
-                           .format(apogee_id, str(e)))
-            return None
+    if os.path.exists(this_cache_path):
+        # Assume it's already done
+        return
 
-        logger.debug("{0}: done sampling - {1} raw samples returned "
-                     "({2:.2f} seconds)".format(apogee_id, len(samples),
-                                                time.time() - t0))
+    t0 = time.time()
+    logger.log(1, f"{apogee_id}: Starting MCMC sampling")
 
-        np.savez(chain_file, emcee_sampler.chain, emcee_sampler.lnprobability)
+    with joker.prior.model:
+        mcmc_init = joker.setup_mcmc(data, MAP_sample)
+        trace = pm.sample(start=mcmc_init, chains=4, cores=1,
+                          step=xo.get_dense_nuts_step(target_accept=0.95),
+                          **sample_kw)
 
-        if not exists(model_file):
-            with open(model_file, 'wb') as f:
-                pickle.dump(model, f)
-
-    if not exists(plot_file):
-        logger.debug('Making plots for {0}'.format(apogee_id))
-
-        if emcee_sampler is None:
-            samples = np.load(chain_file)
-            chain = samples['arr_0']
-
-        fig = plot_mcmc_diagnostic(chain)
-        fig.savefig(plot_file, dpi=250)
-        plt.close(fig)
+    pm.save_trace(trace, directory=this_cache_path)
+    logger.log(1,
+               "{apogee_id}: Finished MCMC sampling ({time:.2f} seconds)"
+               .format(apogee_id=apogee_id, time=time.time() - t0))
 
 
 def main(run_name, pool, overwrite=False):
-    run_path = join(HQ_CACHE_PATH, run_name)
-    with open(join(run_path, 'config.yml'), 'r') as f:
-        config = yaml.load(f.read())
+    c = Config.from_run_name(run_name)
 
-    emcee_cache_path = join(HQ_CACHE_PATH, run_name, 'emcee')
-    os.makedirs(emcee_cache_path, exist_ok=True)
-
-    # Get paths to files needed to run
-    params = config_to_jokerparams(config)
-    joker = TheJoker(params)
+    mcmc_cache_path = os.path.join(c.run_path, 'mcmc')
+    os.makedirs(mcmc_cache_path, exist_ok=True)
 
     # Load the analyzed joker samplings file, only keep unimodal:
-    joker_metadata = QTable.read(join(HQ_CACHE_PATH, run_name, 'metadata.fits'))
+    joker_metadata = QTable.read(c.metadata_path)
     unimodal_tbl = joker_metadata[joker_metadata['unimodal'] &
                                   (joker_metadata['periods_spanned'] > 1.)]
 
     # Load the data:
-    allstar, allvisit = config_to_alldata(config)
+    allstar, allvisit = c.load_alldata()
     allstar = allstar[np.isin(allstar['APOGEE_ID'], unimodal_tbl['APOGEE_ID'])]
     allvisit = allvisit[np.isin(allvisit['APOGEE_ID'], allstar['APOGEE_ID'])]
+
+    joker = tj.TheJoker(c.prior)
+    sample_kw = dict(tune=c.tune, draws=c.draws)
 
     tasks = []
     logger.debug("Loading data and preparing tasks...")
@@ -97,19 +68,12 @@ def main(run_name, pool, overwrite=False):
         visits = allvisit[allvisit['APOGEE_ID'] == row['APOGEE_ID']]
         data = get_rvdata(visits)
 
-        # Load the MAP sample:
-        vals = dict([(k[4:], row[k])
-                     for k in row.colnames
-                     if k.startswith('MAP_') and not k.startswith('MAP_ln')])
+        MAP_sample = extract_MAP_sample(row)
 
-        MAP_sample = JokerSamples(**vals)
-        MAP_sample.t0 = data.t0
+        tasks.append([row['APOGEE_ID'], data, joker, MAP_sample,
+                      mcmc_cache_path, sample_kw])
 
-        tasks.append([joker, row['APOGEE_ID'], data, config, MAP_sample,
-                      emcee_cache_path, overwrite])
-
-    logger.info('Done preparing tasks: {0} stars in process queue'
-                .format(len(tasks)))
+    logger.info(f'Done preparing tasks: {len(tasks)} stars in process queue')
 
     for r in tqdm(pool.starmap(worker, tasks), total=len(tasks)):
         pass
@@ -120,27 +84,9 @@ if __name__ == '__main__':
     parser = get_parser(description='Run The Joker on APOGEE data',
                         loggers=[logger, joker_logger])
 
-    parser.add_argument("--name", dest="run_name", required=True,
-                        type=str, help="The name of the run.")
-
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument("--procs", dest="n_procs", default=1,
-                       type=int, help="Number of processes.")
-    group.add_argument("--mpi", dest="mpi", default=False,
-                       action="store_true", help="Run with MPI.")
-
-    parser.add_argument("-o", "--overwrite", dest="overwrite", default=False,
-                        action="store_true",
-                        help="Overwrite any existing samplings")
-
     args = parser.parse_args()
 
-    if args.mpi:
-        Pool = MPIAsyncPool
-    else:
-        Pool = SerialPool
-
-    with Pool() as pool:
+    with args.Pool(**args.Pool_kwargs) as pool:
         main(run_name=args.run_name, pool=pool, overwrite=args.overwrite)
 
     sys.exit(0)

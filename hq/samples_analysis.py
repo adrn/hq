@@ -2,13 +2,11 @@
 from astropy.time import Time
 import astropy.units as u
 import numpy as np
-from scipy.optimize import minimize
-from thejoker.sampler.mcmc import TheJokerMCMCModel
 from thejoker import JokerSamples
 
-__all__ = ['unimodal_P', 'max_likelihood_sample', 'MAP_sample', 'chisq',
+__all__ = ['unimodal_P', 'max_likelihood_sample', 'MAP_sample',
            'max_phase_gap', 'phase_coverage', 'periods_spanned',
-           'phase_coverage_per_period', 'optimize_mode']
+           'phase_coverage_per_period']
 
 
 def ln_normal(x, mu, var):
@@ -115,11 +113,7 @@ def phase_coverage(sample, data, n_bins=10):
     sample : `~thejoker.JokerSamples`
     data : `~thejoker.RVData`
     """
-    if len(sample) == 1:
-        P = sample['P'][0]
-    else:
-        P = sample['P']
-
+    P = sample['P']
     H, _ = np.histogram(data.phase(P),
                         bins=np.linspace(0, 1, n_bins+1))
     return (H > 0).sum() / n_bins
@@ -133,11 +127,7 @@ def periods_spanned(sample, data):
     sample : `~thejoker.JokerSamples`
     data : `~thejoker.RVData`
     """
-    if len(sample) == 1:
-        P = sample['P'][0]
-    else:
-        P = sample['P']
-
+    P = sample['P']
     T = data.t.jd.max() - data.t.jd.min()
     return T / P.to_value(u.day)
 
@@ -150,48 +140,12 @@ def phase_coverage_per_period(sample, data):
     sample : `~thejoker.JokerSamples`
     data : `~thejoker.RVData`
     """
-    if len(sample) == 1:
-        P = sample['P'][0]
-    else:
-        P = sample['P']
-
+    P = sample['P']
     dt = (data.t - data.t0).to(u.day)
     phase = dt / P
     H1, _ = np.histogram(phase, bins=np.arange(0, phase.max()+1, 1))
     H2, _ = np.histogram(phase, bins=np.arange(-0.5, phase.max()+1, 1))
     return max(H1.max(), H2.max())
-
-
-def optimize_mode(init_sample, data, joker, minimize_kwargs=None,
-                  return_logprobs=False):
-    """Compute the maximum likelihood value within the mode that
-    the specified sample is in.
-
-    TODO: rewrite this
-
-    """
-    model = TheJokerMCMCModel(joker.params, data)
-    init_p = model.pack_samples(init_sample)
-
-    if minimize_kwargs is None:
-        minimize_kwargs = dict()
-    res = minimize(lambda *args: -model(args), x0=init_p,
-                   method='BFGS', **minimize_kwargs)
-
-    if not res.success:
-        return None
-
-    opt_sample = model.unpack_samples(res.x)
-    opt_sample.t0 = data.t0
-
-    if return_logprobs:
-        pp = model.unpack_samples(res.x, add_units=False)
-        ll = model.ln_likelihood(pp).sum()
-        lp = model.ln_prior(pp).sum()
-        return opt_sample, lp, ll
-
-    else:
-        return opt_sample
 
 
 def constant_model_evidence(data):
@@ -200,8 +154,8 @@ def constant_model_evidence(data):
     for the input data.
     """
     N = len(data)
-    sn = data.stddev.value
     vn = data.rv.value
+    sn = data.rv_err.to_value(data.rv.unit)
 
     sig2 = 1 / np.sum(1 / sn**2)
     mu = sig2 * np.sum(vn / sn**2)
@@ -212,18 +166,15 @@ def constant_model_evidence(data):
     return Z2
 
 
-def extract_MAP_orbit(row):
-    data = dict()
+def extract_MAP_sample(row):
+    sample = JokerSamples(t0=Time(row['t0_bmjd'], format='mjd', scale='tcb'))
+
     for colname in row.colnames:
         if not colname.startswith('MAP_'):
             continue
         if colname.endswith('_err'):
             continue
-        if colname[4:].startswith('ln_'):
-            continue
 
-        data[colname[4:]] = row[colname]
+        sample[colname[4:]] = u.Quantity([row[colname]])
 
-    sample = JokerSamples(t0=Time(row['t0_bmjd'], format='mjd', scale='tcb'),
-                          **data)
-    return sample.get_orbit(0)
+    return sample[0]

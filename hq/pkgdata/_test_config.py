@@ -34,7 +34,10 @@ n_prior_samples = 1_000_000
 prior_cache_file = f'prior_samples_{n_prior_samples}_{name}.hdf5'
 
 ## The number of posterior samples to generate per source:
-requested_samples_per_star = 16
+requested_samples_per_star = 128
+
+## Randomly draw samples from the prior cache. This will slow things down!
+randomize_prior_order = False
 
 
 ##############################################################################
