@@ -2,12 +2,6 @@
 
 ## This is a configuration file used for internal HQ tests.
 
-## Imports we always need:
-import astropy.units as u
-import pymc3 as pm
-import exoplanet.units as xu
-import thejoker as tj
-
 ##############################################################################
 ## General parameters and data:
 ##
@@ -30,20 +24,8 @@ min_nvisits = 3
 ## Prior and sampling parameters for The Joker:
 ##
 
-## The prior used to run The Joker:
-with pm.Model() as model:
-
-  # Prior on the extra variance parameter:
-  s = xu.with_unit(pm.Lognormal('s', 0, 0.5),
-                   u.km/u.s)
-
-  # Set up the default Joker prior:
-  prior = tj.JokerPrior.default(
-    P_min=2*u.day, P_max=1024*u.day,
-    sigma_K0=30*u.km/u.s,
-    sigma_v=100*u.km/u.s,
-    s=s
-  )
+## Name of the prior definition file:
+prior_file = 'prior.py'
 
 ## Number of prior samples to generate and cache:
 n_prior_samples = 1_000_000

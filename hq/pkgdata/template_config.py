@@ -31,15 +31,8 @@ min_nvisits = 3
 ## Prior and sampling parameters for The Joker:
 ##
 
-## The prior used to run The Joker:
-## **REQUIRED**: please edit below
-with pm.Model() as model:
-  # Set up the default Joker prior:
-  prior = tj.JokerPrior.default(
-    P_min=None, P_max=None,
-    sigma_K0=None,
-    sigma_v=None
-  )
+## Name of the prior definition file:
+prior_file = 'prior.py'
 
 ## Number of prior samples to generate and cache:
 n_prior_samples = 500_000_000
