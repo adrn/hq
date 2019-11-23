@@ -39,8 +39,9 @@ def main(name, pool, overwrite, seed, n_batches=None):
                      f"to re-generate.")
         return
 
-    logger.debug("Prior samples file not found: generating {c.n_prior_samples} "
-                 "samples in cache file at {c.prior_cache_file}")
+    logger.debug(f"Prior samples file not found: generating "
+                 f"{c.n_prior_samples} samples in cache file at "
+                 f"{c.prior_cache_file}")
 
     if n_batches is None:
         n_batches = max(pool.size, 1)
