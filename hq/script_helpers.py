@@ -50,6 +50,23 @@ def get_parser(description="", loggers=None):
                                  "the environment variable $HQ_RUN")
 
             set_log_level(parsed, loggers)
+
+            # deal with multiproc:
+            if parsed.mpi:
+                from schwimmbad.mpi import MPIAsyncPool
+                Pool = MPIAsyncPool
+                kw = dict()
+            elif parsed.n_procs > 1:
+                from schwimmbad import MultiPool
+                Pool = MultiPool
+                kw = dict(processes=args.n_procs)
+            else:
+                from schwimmbad import SerialPool
+                Pool = SerialPool
+                kw = dict()
+            parsed.Pool = Pool
+            parsed.Pool_kwargs = kw
+
             return parsed
 
     # Define parser object
@@ -68,5 +85,11 @@ def get_parser(description="", loggers=None):
     parser.add_argument("-o", "--overwrite", dest="overwrite", default=False,
                         action="store_true",
                         help="Overwrite any existing results for this run.")
+
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("--procs", dest="n_procs", default=1,
+                       type=int, help="Number of processes.")
+    group.add_argument("--mpi", dest="mpi", default=False,
+                       action="store_true", help="Run with MPI.")
 
     return parser

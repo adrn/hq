@@ -69,32 +69,11 @@ if __name__ == "__main__":
                                     'and edit the configuration.',
                         loggers=logger)
 
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument("--procs", dest="n_procs", default=1,
-                       type=int, help="Number of processes.")
-    group.add_argument("--mpi", dest="mpi", default=False,
-                       action="store_true", help="Run with MPI.")
-
     parser.add_argument("-s", "--seed", dest="seed", default=None, type=int,
                         help="Random number seed")
 
     args = parser.parse_args()
 
-    if args.mpi:
-        from schwimmbad.mpi import MPIAsyncPool
-        Pool = MPIAsyncPool
-        kw = dict()
-    elif args.n_procs > 1:
-        from schwimmbad import MultiPool
-        Pool = MultiPool
-        kw = dict(processes=args.n_procs)
-    else:
-        from schwimmbad import SerialPool
-        Pool = SerialPool
-        kw = dict()
-
-    args = parser.parse_args()
-
-    with Pool(**kw) as pool:
+    with args.Pool(**args.Pool_kwargs) as pool:
         main(args.run_name, pool=pool, overwrite=args.overwrite,
              seed=args.seed)

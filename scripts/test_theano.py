@@ -10,6 +10,7 @@ theano.config.optimizer = 'None'
 def worker(task):
     i, pars = task
     samples = pm.distributions.draw_values(pars, size=10_000)
+    print(i)
     return samples
 
 

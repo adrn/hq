@@ -6,12 +6,10 @@ import sys
 from astropy.table import Table
 import h5py
 import numpy as np
-from thejoker.log import log as joker_logger
+from thejoker.logging import logger as joker_logger
 from tqdm import tqdm
 import yaml
 from scipy.optimize import minimize
-from schwimmbad import SerialPool
-from schwimmbad.mpi import MPIAsyncPool
 from thejoker.data import RVData
 
 # Project
@@ -122,8 +120,10 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.mpi:
+        from schwimmbad.mpi import MPIAsyncPool
         Pool = MPIAsyncPool
     else:
+        from schwimmbad import SerialPool
         Pool = SerialPool
 
     with Pool() as pool:

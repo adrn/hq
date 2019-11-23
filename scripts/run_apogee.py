@@ -6,6 +6,8 @@ import time
 # Third-party
 import h5py
 import numpy as np
+import theano
+theano.config.optimizer = 'None'
 from thejoker.logging import logger as joker_logger
 from thejoker import TheJoker
 from tqdm import tqdm
@@ -127,30 +129,17 @@ if __name__ == '__main__':
     parser = get_parser(description='Run The Joker on APOGEE data',
                         loggers=[logger, joker_logger])
 
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument("--procs", dest="n_procs", default=1,
-                       type=int, help="Number of processes.")
-    group.add_argument("--mpi", dest="mpi", default=False,
-                       action="store_true", help="Run with MPI.")
-
     parser.add_argument("-s", "--seed", dest="seed", default=None, type=int,
                         help="Random number seed")
 
     args = parser.parse_args()
-
-    if args.mpi:
-        from schwimmbad.mpi import MPIAsyncPool
-        Pool = MPIAsyncPool
-    else:
-        from schwimmbad import SerialPool
-        Pool = SerialPool
 
     seed = args.seed
     if seed is None:
         seed = np.random.randint(2**32 - 1)
         logger.debug(f"No random number seed specified, so using seed: {seed}")
 
-    with Pool() as pool:
+    with args.Pool(**args.Pool_kwargs) as pool:
         main(run_name=args.run_name, pool=pool, overwrite=args.overwrite,
              seed=args.seed)
 
