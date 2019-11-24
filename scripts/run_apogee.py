@@ -41,7 +41,7 @@ def worker(task):
             data = RVData.from_timeseries(tasks_f[apogee_id])
 
         t0 = time.time()
-        logger.log(0, "{0}: Starting sampling".format(apogee_id))
+        logger.log(1, "{0}: Starting sampling".format(apogee_id))
 
         try:
             samples = joker.iterative_rejection_sample(
