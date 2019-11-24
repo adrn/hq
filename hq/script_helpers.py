@@ -53,13 +53,15 @@ def get_parser(description="", loggers=None):
 
             # deal with multiproc:
             if parsed.mpi:
-                from schwimmbad.mpi import MPIAsyncPool
-                Pool = MPIAsyncPool
+                # from schwimmbad.mpi import MPIAsyncPool
+                # Pool = MPIAsyncPool
+                from schwimmbad.mpi import MPIPool
+                Pool = MPIPool
                 kw = dict()
             elif parsed.n_procs > 1:
                 from schwimmbad import MultiPool
                 Pool = MultiPool
-                kw = dict(processes=args.n_procs)
+                kw = dict(processes=parsed.n_procs)
             else:
                 from schwimmbad import SerialPool
                 Pool = SerialPool

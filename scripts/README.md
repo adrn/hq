@@ -25,7 +25,7 @@
 * `cp ../hq/pkgdata/_test_prior.py $HQ_CACHE_PATH/hqtest/prior.py`
 * `python make_prior_cache.py --name hqtest`
 * `python make_tasks.py --name hqtest -o`
-* `python run_apogee.py --name hqtest -o`
+* `mpirun -n 4 python run_apogee.py --name hqtest -o --mpi`
 * `python run_fit_constant.py --name hqtest -o`
 * `python analyze_joker_samplings.py --name hqtest -o`
 * `python run_continue_mcmc.py --name hqtest -o`
