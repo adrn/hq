@@ -8,6 +8,8 @@
 #SBATCH --constraint=skylake
 
 source ~/.bash_profile
+init_conda
+echo $HQ_RUN
 
 cd /mnt/ceph/users/apricewhelan/projects/hq/scripts
 
@@ -21,4 +23,3 @@ stdbuf -o0 -e0 mpirun -n $SLURM_NTASKS python -m mpi4py.futures run_null_control
 
 date
 
-# --constraint=skylake
