@@ -59,7 +59,8 @@ distribute-*.tar.gz
 # Mac OSX
 .DS_Store
 
-mpi
+mpi/*.e*
+mpi/*.o*
 cache
 data
 notebooks
