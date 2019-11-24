@@ -100,7 +100,11 @@ def main(run_name, pool, overwrite=False, seed=None, limit=None):
     if overwrite:
         done_apogee_ids = list()
 
+    if done_apogee_ids:
+        logger.debug(f"{len(done_apogee_ids)} already completed")
+
     # Get data files out of config file:
+    logger.debug("Loading data...")
     allstar, _ = c.load_alldata()
     allstar = allstar[~np.isin(allstar['APOGEE_ID'], done_apogee_ids)]
 
@@ -113,6 +117,7 @@ def main(run_name, pool, overwrite=False, seed=None, limit=None):
         apogee_ids = apogee_ids[:limit]
 
     # Load the prior:
+    logger.debug("Creating JokerPrior instance...")
     prior = c.get_prior()
 
     # Make directory for temp. files, one per worker:
