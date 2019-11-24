@@ -11,6 +11,7 @@ import theano
 theano.config.optimizer = 'None'
 theano.config.mode = 'FAST_COMPILE'
 theano.config.reoptimize_unpickled_function = False
+theano.config.cxx = ""
 import h5py
 import numpy as np
 from thejoker.logging import logger as joker_logger
