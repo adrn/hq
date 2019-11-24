@@ -24,7 +24,8 @@ def worker(apogee_id, results_path, output_path, config):
             f[apogee_id], poly_trend=config['hyperparams']['poly_trend'])
 
         more_cols = dict()
-        if 'ln_likelihood' in f[apogee_id].keys():
+        if ('ln_likelihood' in f[apogee_id].keys() and
+                f[apogee_id + '/ln_likelihood'].shape != ()):
             more_cols['ln_likelihood'] = f[apogee_id]['ln_likelihood'][:]
             more_cols['ln_prior'] = f[apogee_id]['ln_prior'][:]
         else:
@@ -50,6 +51,8 @@ def main(run_name, pool, overwrite=False):
     allstar, allvisit = config_to_alldata(config)
 
     samples_path = join(HQ_CACHE_PATH, run_name, 'samples')
+    logger.debug(f'Writing samples to {samples_path}')
+
     unq_stubs = np.unique([x[:4] for x in allstar['APOGEE_ID']])
     for stub in unq_stubs:
         os.makedirs(join(samples_path, stub), exist_ok=True)
@@ -63,6 +66,9 @@ def main(run_name, pool, overwrite=False):
 
     joker_f = h5py.File(joker_results_path, 'r')
     emcee_f = h5py.File(emcee_results_path, 'r')
+
+    logger.debug('Reading {} APOGEE IDs from Joker samplings'
+                 .format(len(joker_f.keys())))
 
     for apogee_id in joker_f.keys():
         if apogee_id in emcee_f.keys():

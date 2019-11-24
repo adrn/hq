@@ -12,8 +12,6 @@ from thejoker.sampler import TheJoker
 from thejoker.data import RVData
 from tqdm import tqdm
 import yaml
-from schwimmbad import SerialPool
-from schwimmbad.mpi import MPIAsyncPool
 
 # Project
 from hq.data import get_rvdata
@@ -42,11 +40,13 @@ def main(run_name, pool, overwrite=False, seed=None):
     run_path = join(HQ_CACHE_PATH, run_name)
     with open(join(run_path, 'config.yml'), 'r') as f:
         config = yaml.load(f.read())
+    logger.debug("Config file loaded")
 
     # Get paths to files needed to run
     params = config_to_jokerparams(config)
     prior_cache_path = config_to_prior_cache(config, params)
     results_path = join(HQ_CACHE_PATH, run_name, 'thejoker-injected.hdf5')
+    logger.debug(f"Caching to {results_path}")
 
     if not exists(prior_cache_path):
         raise IOError("Prior cache file '{0}' does not exist! Did you run "
@@ -56,12 +56,17 @@ def main(run_name, pool, overwrite=False, seed=None):
         pass
 
     # Get data files out of config file:
+    logger.debug("Loading APOGEE data...")
     allstar, allvisit = config_to_alldata(config)
+    logger.debug("Loading APOGEE data...finished")
 
     # Read metadata file:
+    logger.debug("Loading metadata from previous HQ run...")
     meta_file = join(HQ_CACHE_PATH, run_name, 'metadata-master.fits')
     meta = at.Table.read(meta_file)
+    logger.debug("Joining with APOGEE data...")
     master = at.join(meta, allstar, keys='APOGEE_ID')
+    logger.debug("Joining with APOGEE data...finished")
 
     # n_control = len(allstar) // 10
     n_control = 4  # TODO: remove this when running in production
@@ -89,6 +94,7 @@ def main(run_name, pool, overwrite=False, seed=None):
 
         # Get MAP orbit from metadata file:
         orbit = extract_MAP_orbit(star)
+        print(orbit.elements)
         flat_rv = data.rv - orbit.radial_velocity(data.t)
         base_rv = np.median(data.rv) + flat_rv
 
@@ -135,8 +141,10 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.mpi:
+        from schwimmbad.mpi import MPIAsyncPool
         Pool = MPIAsyncPool
     else:
+        from schwimmbad import SerialPool
         Pool = SerialPool
 
     with Pool() as pool:
