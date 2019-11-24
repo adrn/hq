@@ -26,6 +26,9 @@ def make_run(name):
     with open(tmpl, 'r') as f:
         template_config = f.read()
 
+    template_config.replace("name = None",
+                            f"name = {name}")
+
     new_config_path = os.path.join(run_path, 'config.py')
     with open(new_config_path, 'w') as f:
         f.write(template_config)

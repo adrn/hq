@@ -5,18 +5,11 @@
 ## When settings are required, they are noted, and will error if left
 ## unmodified. Other parameters have defaults set in the file below.
 
-## Imports we always need:
-import astropy.units as u
-import pymc3 as pm
-import exoplanet.units as xu
-import thejoker as tj
-
 ##############################################################################
 ## General parameters and data:
 ##
 
 ## The name of the run (string):
-## **REQUIRED**: please edit this
 name = None
 
 ## The paths to the APOGEE allStar and allVisit files:
@@ -26,6 +19,7 @@ allvisit_filename = None
 
 ## The minimum number of visits to accept when filtering sources:
 min_nvisits = 3
+
 
 ##############################################################################
 ## Prior and sampling parameters for The Joker:
