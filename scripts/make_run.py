@@ -12,9 +12,9 @@ def make_run(name):
     run_path = os.path.join(HQ_CACHE_PATH, name)
 
     if os.path.exists(run_path):
-        logger.debug("Run already exists at '{}'! Delete that path and re-run "
-                     "if you want to create a new run with this name."
-                     .format(run_path))
+        logger.info("Run already exists at '{}'! Delete that path and re-run "
+                    "if you want to create a new run with this name."
+                    .format(run_path))
         return
 
     logger.debug("Creating new run '{}' at path {}".format(name, run_path))
@@ -22,14 +22,14 @@ def make_run(name):
 
     # Now copy in the template configuration file:
     HQ_ROOT_PATH = os.path.split(hq.__file__)[0]
-    tmpl = os.path.join(HQ_ROOT_PATH, 'pkgdata', 'template_config.py')
+    tmpl = os.path.join(HQ_ROOT_PATH, 'pkgdata', 'template_config.yml')
     with open(tmpl, 'r') as f:
         template_config = f.read()
 
-    template_config.replace("name = None",
-                            f"name = {name}")
+    template_config = template_config.replace("name: null",
+                                              f"name: {name}")
 
-    new_config_path = os.path.join(run_path, 'config.py')
+    new_config_path = os.path.join(run_path, 'config.yml')
     with open(new_config_path, 'w') as f:
         f.write(template_config)
 

@@ -18,10 +18,10 @@
 
 ## Testing:
 
-* `export HQ_CACH_PATH='/Users/apricewhelan/.hq'`
+* `export HQ_CACHE_PATH='/Users/apricewhelan/.hq'`
 * `cd <hq repo>/scripts`
 * `python make_run.py --name hqtest`
-* `cp ../hq/pkgdata/_test_config.py $HQ_CACHE_PATH/hqtest/config.py`
+* `cp ../hq/pkgdata/_test_config.yml $HQ_CACHE_PATH/hqtest/config.yml`
 * `cp ../hq/pkgdata/_test_prior.py $HQ_CACHE_PATH/hqtest/prior.py`
 * `python make_prior_cache.py --name hqtest`
 * `python make_tasks.py --name hqtest -o`

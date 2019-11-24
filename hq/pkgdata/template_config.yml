@@ -1,43 +1,44 @@
 # flake8: noqa
 
-## This is a configuration file used for internal HQ tests.
+## This is a template configuration file for running HQ. Most of these settings
+## are parameters that relate to The Joker: http://thejoker.readthedocs.io/
+## When settings are required, they are noted, and will error if left
+## unmodified. Other parameters have defaults set in the file below.
 
 ##############################################################################
 ## General parameters and data:
 ##
 
 ## The name of the run (string):
-## **REQUIRED**: please edit this
-name = 'hqtest'
+name: null
 
 ## The paths to the APOGEE allStar and allVisit files:
-from astropy.utils.data import get_pkg_data_filename
-allstar_filename = get_pkg_data_filename('tests/test-allStar.fits',
-                                         package='hq')
-allvisit_filename = get_pkg_data_filename('tests/test-allVisit.fits',
-                                          package='hq')
+## **REQUIRED**: please edit these
+allstar_filename: null
+allvisit_filename: null
 
 ## The minimum number of visits to accept when filtering sources:
-min_nvisits = 3
+min_nvisits: 3
+
 
 ##############################################################################
 ## Prior and sampling parameters for The Joker:
 ##
 
 ## Name of the prior definition file:
-prior_file = 'prior.py'
+prior_file: 'prior.py'
 
 ## Number of prior samples to generate and cache:
-n_prior_samples = 1_000_000
+n_prior_samples: 500_000_000
 
 ## Name of the prior cache file:
-prior_cache_file = f'prior_samples_{n_prior_samples}_{name}.hdf5'
+prior_cache_file: null
 
 ## The number of posterior samples to generate per source:
-requested_samples_per_star = 128
+requested_samples_per_star: 1024
 
 ## Randomly draw samples from the prior cache. This will slow things down!
-randomize_prior_order = False
+randomize_prior_order: False
 
 
 ##############################################################################
@@ -45,8 +46,8 @@ randomize_prior_order = False
 ##
 
 ## These parameters are passed directly to pymc3.sample()
-tune = 100
-draws = 100
+tune: 1000
+draws: 1000
 
 ## This is the target acceptance ratio used for computing the dense mass matrix:
-target_accept = 0.95
+target_accept: 0.95

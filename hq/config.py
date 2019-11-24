@@ -5,6 +5,7 @@ import importlib.util as iu
 
 # Third-party
 from astropy.io import fits
+import yaml
 
 # Project
 from .log import logger
@@ -42,45 +43,41 @@ class Config:
     target_accept: float = 0.95
 
     def __init__(self, filename):
-        self.name = filename
-
         filename = os.path.abspath(os.path.expanduser(filename))
         if not os.path.exists(filename):
             raise IOError(f"Config file {filename} does not exist.")
 
-        spec = iu.spec_from_file_location("config", filename)
-        user_config = iu.module_from_spec(spec)
-        spec.loader.exec_module(user_config)
+        with open(filename, 'r') as f:
+            vals = yaml.safe_load(f.read())
 
-        for name in dir(user_config):
-            if name.startswith('_'):
-                continue
-            setattr(self, name, getattr(user_config, name))
+        self._load_validate(vals)
 
-        self._validate()
-
-    def _validate(self):
+    def _load_validate(self, vals):
         # Validate types:
         for field in fields(self):
+            default = None
+            if field.name == 'prior_cache_file':
+                default = (f'prior_samples_{self.n_prior_samples}'
+                           f'_{self.name}.hdf5')
+
+            val = vals.get(field.name, None)
+            if val is None:
+                val = default
+            setattr(self, field.name, val)
+
             attr = getattr(self, field.name)
             if not isinstance(attr, field.type):
                 msg = (f"Config field '{field.name}' has type {type(attr)}, "
                        f"but should be {field.type}")
                 raise ValueError(msg)
 
-        # Some validation of values too:
-        required = ['name', 'allstar_filename', 'allvisit_filename']
-        for name in required:
-            if not hasattr(self, name):
-                raise ValueError(f"You must specify a config value for {name}")
+        for name in ['allstar_filename', 'allvisit_filename']:
+            if not os.path.exists(getattr(self, name)):
+                raise FileNotFoundError(f"File not found at {name}")
 
         # Normalize paths:
         if os.path.abspath(self.prior_file) != self.prior_file:
             self.prior_file = os.path.join(self.run_path, self.prior_file)
-
-        if self.prior_cache_file is None:
-            self.prior_cache_file = (f'prior_samples_{self.n_prior_samples}'
-                                     f'_{self.name}.hdf5')
 
         if os.path.abspath(self.prior_cache_file) != self.prior_cache_file:
             self.prior_cache_file = os.path.join(self.run_path,
@@ -88,7 +85,7 @@ class Config:
 
     @classmethod
     def from_run_name(cls, name):
-        return cls(os.path.join(HQ_CACHE_PATH, name, 'config.py'))
+        return cls(os.path.join(HQ_CACHE_PATH, name, 'config.yml'))
 
     # ------------------------------------------------------------------------
     # Paths:

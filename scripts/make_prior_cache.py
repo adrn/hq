@@ -46,8 +46,9 @@ def main(name, pool, overwrite, seed, n_batches=None):
     if n_batches is None:
         n_batches = max(pool.size, 1)
 
+    prior = c.get_prior()
     tasks = batch_tasks(c.n_prior_samples, n_batches,
-                        args=(c.prior, random_state))
+                        args=(prior, random_state))
 
     all_samples = []
     for samples in pool.map(_prior_cache_worker, tasks):
