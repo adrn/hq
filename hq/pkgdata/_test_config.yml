@@ -26,6 +26,7 @@ prior_file: 'prior.py'
 
 ## Number of prior samples to generate and cache:
 n_prior_samples: 1_000_000
+max_prior_samples: 1_000_000
 
 ## Name of the prior cache file:
 prior_cache_file: null
