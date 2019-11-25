@@ -33,6 +33,7 @@ class Config:
     # The Joker
     prior_file: str = 'prior.py'
     n_prior_samples: int = 500_000_000
+    max_prior_samples: int = 500_000_000
     prior_cache_file: str = ''
     requested_samples_per_star: int = 1024
     randomize_prior_order: bool = False

@@ -48,6 +48,7 @@ def worker(task):
             samples = joker.iterative_rejection_sample(
                 data=data, n_requested_samples=c.requested_samples_per_star,
                 prior_samples=c.prior_cache_file,
+                max_prior_samples=c.max_prior_samples,
                 randomize_prior_order=c.randomize_prior_order,
                 return_logprobs=True)
         except Exception as e:
