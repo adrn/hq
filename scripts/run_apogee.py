@@ -110,6 +110,13 @@ def main(run_name, pool, overwrite=False, seed=None, limit=None):
         raise IOError("Tasks file '{0}' does not exist! Did you run "
                       "make_tasks.py?")
 
+    # Make directory for temp. files, one per worker:
+    tmpdir = os.path.join(c.run_path, 'thejoker')
+    if os.path.exists(tmpdir):
+        logger.warning(f"Stale temp. file directory found at {tmpdir}: "
+                       "combining files first...")
+        tmpdir_combine(tmpdir, c.joker_results_path)
+
     # ensure the results file exists
     with h5py.File(c.joker_results_path, 'a') as f:
         done_apogee_ids = list(f.keys())
@@ -135,13 +142,6 @@ def main(run_name, pool, overwrite=False, seed=None, limit=None):
     # Load the prior:
     logger.debug("Creating JokerPrior instance...")
     prior = c.get_prior()
-
-    # Make directory for temp. files, one per worker:
-    tmpdir = os.path.join(c.run_path, 'thejoker')
-    if os.path.exists(tmpdir):
-        logger.warning(f"Stale temp. file directory found at {tmpdir}: "
-                       "combining files first...")
-        tmpdir_combine(tmpdir, c.joker_results_path)
 
     os.makedirs(tmpdir)
     atexit.register(tmpdir_combine, tmpdir, c.joker_results_path)
