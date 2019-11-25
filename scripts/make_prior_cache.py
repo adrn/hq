@@ -32,6 +32,9 @@ def _prior_cache_worker(task):
 
     samples = prior.sample(size=n_samples, return_logprobs=True,
                            dtype=np.float32)
+
+    logger.debug(f"Worker {task_id} finished")
+
     return samples
 
 
