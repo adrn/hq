@@ -23,6 +23,8 @@ def _prior_cache_worker(task):
     if n_samples <= 0:
         return None
 
+    logger.debug(f"Worker {task_id} generating {n_samples} samples")
+
     if global_random_state is not None:
         random_state = np.random.RandomState()
         random_state.set_state(global_random_state.get_state())
