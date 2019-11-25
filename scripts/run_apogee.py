@@ -173,7 +173,7 @@ def main(run_name, pool, overwrite=False, seed=None, limit=None):
                         args=(c, prior, tmpdir, rnd))
 
     logger.info(f'Done preparing tasks: split into {len(tasks)} task chunks')
-    for r in pool.map(worker, tasks):
+    for r in pool.map(worker, tasks, callback=callback):
         pass
 
 
