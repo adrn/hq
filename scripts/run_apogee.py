@@ -171,7 +171,7 @@ if __name__ == '__main__':
     seed = args.seed
     if seed is None:
         seed = np.random.randint(2**32 - 1)
-        logger.debug(f"No random number seed specified, so using seed: {seed}")
+        logger.log(1, f"No random number seed specified, so using seed: {seed}")
 
     with args.Pool(**args.Pool_kwargs) as pool:
         main(run_name=args.run_name, pool=pool, overwrite=args.overwrite,
