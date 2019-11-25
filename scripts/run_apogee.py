@@ -76,6 +76,7 @@ def tmpdir_combine(tmpdir, results_filename):
     tmp_files = sorted(glob.glob(os.path.join(tmpdir, '*.hdf5')))
     with h5py.File(results_filename, 'a') as all_f:
         for tmp_file in tmp_files:
+            logger.log(1, f"Processing {tmp_file}")
             with h5py.File(tmp_file, 'r') as f:
                 for key in f:
                     if key in all_f:
@@ -126,9 +127,9 @@ def main(run_name, pool, overwrite=False, seed=None, limit=None):
     tmpdir = os.path.join(c.run_path, 'thejoker')
     if os.path.exists(tmpdir):
         logger.warning(f"Stale temp. file directory found at {tmpdir}: "
-                       "removing...")
-        time.sleep(3)
-        shutil.rmtree(tmpdir)
+                       "combining files first...")
+        tmpdir_combine(tmpdir, c.joker_results_path)
+
     os.makedirs(tmpdir)
     atexit.register(tmpdir_combine, tmpdir, c.joker_results_path)
 

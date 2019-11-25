@@ -1,3 +1,5 @@
+# TODO: in this script, need to set theano config crap in worker to protect
+
 # Standard library
 import os
 import sys
