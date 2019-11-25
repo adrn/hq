@@ -6,6 +6,9 @@ import h5py
 import numpy as np
 import theano
 theano.config.optimizer = 'None'
+theano.config.mode = 'FAST_COMPILE'
+theano.config.reoptimize_unpickled_function = False
+theano.config.cxx = ""
 from thejoker.utils import batch_tasks
 
 # Project
@@ -25,7 +28,8 @@ def _prior_cache_worker(task):
         random_state.set_state(global_random_state.get_state())
         random_state.seed(task_id)  # TODO: is this safe?
 
-    samples = prior.sample(size=n_samples, return_logprobs=True)
+    samples = prior.sample(size=n_samples, return_logprobs=True,
+                           dtype=np.float32)
     return samples
 
 
