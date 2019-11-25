@@ -14,10 +14,11 @@ theano.config.reoptimize_unpickled_function = False
 theano.config.cxx = ""
 import h5py
 import numpy as np
+import tables as tb
 from thejoker.logging import logger as joker_logger
-from thejoker import TheJoker
-from thejoker.data import RVData
+import thejoker as tj
 from thejoker.multiproc_helpers import batch_tasks
+from thejoker.utils import read_batch
 
 # Project
 from hq.log import logger
@@ -33,26 +34,38 @@ def worker(task):
 
     rnd = global_rnd.seed(worker_id)
     logger.log(1, f"Creating TheJoker instance with {rnd}")
-    joker = TheJoker(prior, random_state=rnd)
+    joker = tj.TheJoker(prior, random_state=rnd)
     logger.debug(f"Worker batch id {worker_id}: "
                  f"{len(apogee_ids)} stars left to process")
 
+    # Initialize to get packed column order:
+    logger.log(1, f"Loading prior samples from cache {c.prior_cache_file}")
+    with h5py.File(c.tasks_path, 'r') as tasks_f:
+        data = tj.RVData.from_timeseries(tasks_f[apogee_ids[0]])
+    joker_helper = joker._make_joker_helper(data)
+    _slice = slice(0, c.max_prior_samples, 1)
+    batch = read_batch(c.prior_cache_file, joker_helper.packed_order,
+                       slice_or_idx=_slice,
+                       units=joker_helper.internal_units)
+    ln_prior = read_batch(c.prior_cache_file, ['ln_prior'], _slice)[:, 0]
+    logger.log(1, f"Loaded {len(batch)} prior samples")
+
     for apogee_id in apogee_ids:
+        logger.debug(f"Running {apogee_id}")
         with h5py.File(c.tasks_path, 'r') as tasks_f:
-            data = RVData.from_timeseries(tasks_f[apogee_id])
+            data = tj.RVData.from_timeseries(tasks_f[apogee_id])
 
         t0 = time.time()
-        logger.log(1, "{0}: Starting sampling".format(apogee_id))
+        logger.log(1, f"{apogee_id}: Starting sampling")
 
         try:
             samples = joker.iterative_rejection_sample(
                 data=data, n_requested_samples=c.requested_samples_per_star,
-                prior_samples=c.prior_cache_file,
-                max_prior_samples=c.max_prior_samples,
+                prior_samples=batch,
                 randomize_prior_order=c.randomize_prior_order,
-                return_logprobs=True)
+                return_logprobs=ln_prior, in_memory=True)
         except Exception as e:
-            logger.warning(f"\t Failed sampling for star {apogee_ids} "
+            logger.warning(f"\t Failed sampling for star {apogee_id} "
                            f"\n Error: {e}")
             continue
 
