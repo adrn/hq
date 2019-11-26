@@ -21,7 +21,9 @@ from hq.samples_analysis import (unimodal_P, max_phase_gap, phase_coverage,
 from run_fit_constant import ln_normal
 
 
-def worker(apogee_id, data, poly_trend, n_requested_samples, results_path):
+def worker(task):
+    apogee_id, data, poly_trend, n_requested_samples, results_path = task
+
     with h5py.File(results_path, 'r') as results_f:
         if apogee_id not in results_f:
             logger.warning("No samples for: {}".format(apogee_id))
@@ -124,7 +126,7 @@ def main(run_name, pool):
                 .format(len(full_tasks)))
 
     rows = []
-    for r, units in tqdm(pool.starmap(worker, full_tasks),
+    for r, units in tqdm(pool.map(worker, full_tasks),
                          total=len(full_tasks)):
         if r is not None:
             rows.append(r)

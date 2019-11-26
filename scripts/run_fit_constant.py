@@ -34,7 +34,9 @@ def neg_ln_likelihood(*args, **kwargs):
     return -ln_likelihood_robust(*args, **kwargs)
 
 
-def worker(apogee_id, data):
+def worker(task):
+    apogee_id, data = task
+
     rv = data.rv.to_value(u.km/u.s).astype('f8')
     var = data.rv_err.to_value(u.km/u.s).astype('f8') ** 2
 
@@ -82,7 +84,7 @@ def main(run_name, pool, overwrite=False, seed=None):
                 .format(len(tasks)))
 
     results = []
-    for r in tqdm(pool.starmap(worker, tasks), total=len(tasks)):
+    for r in tqdm(pool.map(worker, tasks), total=len(tasks)):
         results.append(r)
 
     tbl = Table(results)
