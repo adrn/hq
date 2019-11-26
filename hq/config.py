@@ -73,7 +73,7 @@ class Config:
                 raise ValueError(msg)
 
         self.allstar_filename = os.path.abspath(
-            os.path.expanduser(self.allstar_fileame))
+            os.path.expanduser(self.allstar_filename))
         self.allvisit_filename = os.path.abspath(
             os.path.expanduser(self.allvisit_filename))
 
