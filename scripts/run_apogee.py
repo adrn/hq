@@ -146,7 +146,7 @@ def main(run_name, pool, overwrite=False, seed=None, limit=None):
         done_apogee_ids = list()
 
     if done_apogee_ids:
-        logger.debug(f"{len(done_apogee_ids)} already completed")
+        logger.info(f"{len(done_apogee_ids)} already completed")
 
     # Get data files out of config file:
     logger.debug("Loading data...")
