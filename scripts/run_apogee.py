@@ -43,7 +43,7 @@ def worker(task):
     with h5py.File(c.tasks_path, 'r') as tasks_f:
         data = tj.RVData.from_timeseries(tasks_f[apogee_ids[0]])
     joker_helper = joker._make_joker_helper(data)
-    _slice = slice(0, c.max_prior_samples, 1)
+    _slice = slice(0, c.max_prior_samples // 2, 1)
     batch = read_batch(c.prior_cache_file, joker_helper.packed_order,
                        slice_or_idx=_slice,
                        units=joker_helper.internal_units)
@@ -51,13 +51,11 @@ def worker(task):
     logger.log(1, f"Loaded {len(batch)} prior samples")
 
     for apogee_id in apogee_ids:
-        logger.debug(f"Running {apogee_id}")
         with h5py.File(c.tasks_path, 'r') as tasks_f:
             data = tj.RVData.from_timeseries(tasks_f[apogee_id])
+        logger.debug(f"Running {apogee_id}  ({len(data)} visits)")
 
         t0 = time.time()
-        logger.log(1, f"{apogee_id}: Starting sampling")
-
         try:
             samples = joker.iterative_rejection_sample(
                 data=data, n_requested_samples=c.requested_samples_per_star,
