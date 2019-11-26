@@ -3,6 +3,7 @@ import atexit
 import glob
 import os
 import shutil
+import socket
 import sys
 import time
 
@@ -14,7 +15,6 @@ theano.config.reoptimize_unpickled_function = False
 theano.config.cxx = ""
 import h5py
 import numpy as np
-import tables as tb
 from thejoker.logging import logger as joker_logger
 import thejoker as tj
 from thejoker.multiproc_helpers import batch_tasks
@@ -35,7 +35,7 @@ def worker(task):
     rnd = global_rnd.seed(worker_id)
     logger.log(1, f"Creating TheJoker instance with {rnd}")
     joker = tj.TheJoker(prior, random_state=rnd)
-    logger.debug(f"Worker batch id {worker_id}: "
+    logger.debug(f"Worker batch id {worker_id} on node {socket.gethostname()}: "
                  f"{len(apogee_ids)} stars left to process")
 
     # Initialize to get packed column order:
@@ -82,6 +82,28 @@ def worker(task):
                 del results_f[apogee_id]
             g = results_f.create_group(apogee_id)
             samples.write(g)
+
+    result = {'tmp_filename': results_filename,
+              'joker_results_path': c.joker_results_path,
+              'hostname': socket.gethostname(),
+              'worker_id': worker_id}
+    return result
+
+
+def callback(result):
+    tmp_file = result['tmp_filename']
+    joker_results_file = result['joker_results_path']
+
+    logger.debug(f"Worker {result['worker_id']} on {result['hostname']}: "
+                 f"Combining results from {tmp_file} into {joker_results_file}")
+
+    with h5py.File(joker_results_file, 'a') as all_f:
+        with h5py.File(tmp_file, 'r') as f:
+            for key in f:
+                if key in all_f:
+                    del all_f[key]
+                f.copy(key, all_f)
+    os.remove(tmp_file)
 
 
 def tmpdir_combine(tmpdir, results_filename):
@@ -147,11 +169,11 @@ def main(run_name, pool, overwrite=False, seed=None, limit=None):
     atexit.register(tmpdir_combine, tmpdir, c.joker_results_path)
 
     logger.debug("Preparing tasks...")
-    tasks = batch_tasks(len(apogee_ids), pool.size, arr=apogee_ids,
+    tasks = batch_tasks(len(apogee_ids), 8 * pool.size, arr=apogee_ids,
                         args=(c, prior, tmpdir, rnd))
 
     logger.info(f'Done preparing tasks: split into {len(tasks)} task chunks')
-    for r in pool.map(worker, tasks):
+    for r in pool.map(worker, tasks, callback=callback):
         pass
 
 
