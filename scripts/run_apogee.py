@@ -137,6 +137,7 @@ def main(run_name, pool, overwrite=False, seed=None, limit=None):
         tmpdir_combine(tmpdir, c.joker_results_path)
 
     # ensure the results file exists
+    logger.debug("Loading past results...")
     with h5py.File(c.joker_results_path, 'a') as f:
         done_apogee_ids = list(f.keys())
     if overwrite:
