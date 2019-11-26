@@ -18,10 +18,10 @@ from hq.script_helpers import get_parser
 from hq.samples_analysis import extract_MAP_sample
 
 
-def worker(apogee_ids, data, c, MAP_sample, mcmc_cache_path, sample_kw):
-    path = os.path.join(c.run_path,
-                        os.path.abspath("theano_cache"),
-                        f"p{apogee_ids[0]}")
+def worker(task):
+    apogee_ids, data, c, MAP_sample, mcmc_cache_path, sample_kw = task
+
+    path = os.path.join(c.run_path, "theano_cache", f"p{apogee_ids[0]}")
     os.makedirs(path, exist_ok=True)
     os.environ["THEANO_FLAGS"] = f"base_compiledir={path}"
 
@@ -82,7 +82,7 @@ def main(run_name, pool, overwrite=False):
 
     logger.info(f'Done preparing tasks: {len(tasks)} stars in process queue')
 
-    for r in tqdm(pool.starmap(worker, tasks), total=len(tasks)):
+    for r in tqdm(pool.map(worker, tasks), total=len(tasks)):
         pass
 
 
