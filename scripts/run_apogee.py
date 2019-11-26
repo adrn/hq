@@ -169,7 +169,8 @@ def main(run_name, pool, overwrite=False, seed=None, limit=None):
     atexit.register(tmpdir_combine, tmpdir, c.joker_results_path)
 
     logger.debug("Preparing tasks...")
-    tasks = batch_tasks(len(apogee_ids), 8 * pool.size, arr=apogee_ids,
+    n_tasks = min(16 * pool.size, len(apogee_ids))
+    tasks = batch_tasks(len(apogee_ids), n_tasks, arr=apogee_ids,
                         args=(c, prior, tmpdir, rnd))
 
     logger.info(f'Done preparing tasks: split into {len(tasks)} task chunks')
