@@ -2,7 +2,6 @@
 from astropy.time import Time
 import astropy.units as u
 import numpy as np
-from thejoker import RVData
 from .log import logger
 
 
@@ -14,6 +13,7 @@ def get_new_err(visits, a, b, s):
 
 def get_rvdata(visits, apply_error_calibration=True, float64=True,
                assume_tcb=False):
+    from thejoker import RVData
     if float64:
         dtype = 'f8'
     else:

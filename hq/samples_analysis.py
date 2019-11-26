@@ -2,7 +2,6 @@
 from astropy.time import Time
 import astropy.units as u
 import numpy as np
-from thejoker import JokerSamples
 
 __all__ = ['unimodal_P', 'max_likelihood_sample', 'MAP_sample',
            'max_phase_gap', 'phase_coverage', 'periods_spanned',
@@ -167,6 +166,7 @@ def constant_model_evidence(data):
 
 
 def extract_MAP_sample(row):
+    from thejoker import JokerSamples
     sample = JokerSamples(t0=Time(row['t0_bmjd'], format='mjd', scale='tcb'))
 
     for colname in row.colnames:

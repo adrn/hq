@@ -1,5 +1,3 @@
-# TODO: in this script, need to set theano config crap in worker to protect
-
 # Standard library
 import os
 import sys
@@ -20,29 +18,36 @@ from hq.script_helpers import get_parser
 from hq.samples_analysis import extract_MAP_sample
 
 
-def worker(apogee_id, data, joker, MAP_sample, mcmc_cache_path, sample_kw):
+def worker(apogee_ids, data, c, MAP_sample, mcmc_cache_path, sample_kw):
+    path = os.path.join(c.run_path,
+                        os.path.abspath("theano_cache"),
+                        f"p{apogee_ids[0]}")
+    os.makedirs(path, exist_ok=True)
+    os.environ["THEANO_FLAGS"] = f"base_compiledir={path}"
+
     import pymc3 as pm
     import exoplanet as xo
 
-    this_cache_path = os.path.join(mcmc_cache_path, apogee_id)
+    joker = tj.TheJoker(c.get_prior())
 
-    if os.path.exists(this_cache_path):
-        # Assume it's already done
-        return
+    for apogee_id in apogee_ids:
+        this_cache_path = os.path.join(mcmc_cache_path, apogee_id)
+        if os.path.exists(this_cache_path):
+            # Assume it's already done
+            return
 
-    t0 = time.time()
-    logger.log(1, f"{apogee_id}: Starting MCMC sampling")
+        t0 = time.time()
+        logger.debug(f"{apogee_id}: Starting MCMC sampling")
 
-    with joker.prior.model:
-        mcmc_init = joker.setup_mcmc(data, MAP_sample)
-        trace = pm.sample(start=mcmc_init, chains=4, cores=1,
-                          step=xo.get_dense_nuts_step(target_accept=0.95),
-                          **sample_kw)
+        with joker.prior.model:
+            mcmc_init = joker.setup_mcmc(data, MAP_sample)
+            trace = pm.sample(start=mcmc_init, chains=4, cores=1,
+                              step=xo.get_dense_nuts_step(target_accept=0.95),
+                              **sample_kw)
 
-    pm.save_trace(trace, directory=this_cache_path)
-    logger.log(1,
-               "{apogee_id}: Finished MCMC sampling ({time:.2f} seconds)"
-               .format(apogee_id=apogee_id, time=time.time() - t0))
+        pm.save_trace(trace, directory=this_cache_path)
+        logger.debug("{apogee_id}: Finished MCMC sampling ({time:.2f} seconds)"
+                     .format(apogee_id=apogee_id, time=time.time() - t0))
 
 
 def main(run_name, pool, overwrite=False):
@@ -63,7 +68,6 @@ def main(run_name, pool, overwrite=False):
     allvisit = allvisit[np.isin(allvisit['APOGEE_ID'].astype(str),
                                 allstar['APOGEE_ID'].astype(str))]
 
-    joker = tj.TheJoker(c.prior)
     sample_kw = dict(tune=c.tune, draws=c.draws)
 
     tasks = []
@@ -73,8 +77,7 @@ def main(run_name, pool, overwrite=False):
         data = get_rvdata(visits)
 
         MAP_sample = extract_MAP_sample(row)
-
-        tasks.append([row['APOGEE_ID'], data, joker, MAP_sample,
+        tasks.append([row['APOGEE_ID'], data, c, MAP_sample,
                       mcmc_cache_path, sample_kw])
 
     logger.info(f'Done preparing tasks: {len(tasks)} stars in process queue')
