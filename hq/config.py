@@ -72,9 +72,15 @@ class Config:
                        f"but should be {field.type}")
                 raise ValueError(msg)
 
+        self.allstar_filename = os.path.abspath(
+            os.path.expanduser(self.allstar_fileame))
+        self.allvisit_filename = os.path.abspath(
+            os.path.expanduser(self.allvisit_filename))
+
         for name in ['allstar_filename', 'allvisit_filename']:
-            if not os.path.exists(getattr(self, name)):
-                raise FileNotFoundError(f"File not found at {name}")
+            val = getattr(self, name)
+            if not os.path.exists(val):
+                raise FileNotFoundError(f"File not found at {val}")
 
         # Normalize paths:
         if os.path.abspath(self.prior_file) != self.prior_file:

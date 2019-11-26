@@ -11,8 +11,8 @@
 name: 'hqtest'
 
 ## The paths to the APOGEE allStar and allVisit files:
-allstar_filename: '/Users/apricewhelan/projects/hq/hq/tests/test-allStar.fits'
-allvisit_filename: '/Users/apricewhelan/projects/hq/hq/tests/test-allVisit.fits'
+allstar_filename: '~/projects/hq/hq/tests/test-allStar.fits'
+allvisit_filename: '~/projects/hq/hq/tests/test-allVisit.fits'
 
 ## The minimum number of visits to accept when filtering sources:
 min_nvisits: 3
