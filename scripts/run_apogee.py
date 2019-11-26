@@ -70,9 +70,8 @@ def worker(task):
             continue
 
         dt = time.time() - t0
-        logger.log(1,
-                   f"{apogee_id}: done sampling - {len(samples)} raw samples "
-                   f"returned ({dt:.2f} seconds)")
+        logger.debug(f"{apogee_id} ({len(data)} visits): done sampling - "
+                     f"{len(samples)} raw samples returned ({dt:.2f} seconds)")
 
         # Ensure only positive K values
         samples.wrap_K()
