@@ -94,7 +94,8 @@ def main(run_name, pool):
 
     # numbers we need to validate
     n_requested = c.requested_samples_per_star
-    poly_trend = c.prior.poly_trend
+    prior = c.get_prior()
+    poly_trend = prior.poly_trend
 
     for path in [c.joker_results_path, c.tasks_path]:
         if not os.path.exists(path):
