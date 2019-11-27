@@ -33,33 +33,39 @@ def worker(task):
     results_filename = os.path.join(tmpdir, f'worker-{worker_id}.hdf5')
 
     rnd = global_rnd.seed(worker_id)
-    logger.log(1, f"Creating TheJoker instance with {rnd}")
+    logger.log(1, f"Worker {worker_id}: Creating TheJoker instance with {rnd}")
+    prior = c.get_prior()
     joker = tj.TheJoker(prior, random_state=rnd)
-    logger.debug(f"Worker batch id {worker_id} on node {socket.gethostname()}: "
+    logger.debug(f"Worker {worker_id} on node {socket.gethostname()}: "
                  f"{len(apogee_ids)} stars left to process")
 
     # Initialize to get packed column order:
-    logger.log(1, f"Loading prior samples from cache {c.prior_cache_file}")
+    logger.log(1,
+               f"Worker {worker_id}: Loading prior samples from cache "
+               f"{c.prior_cache_file}")
     with h5py.File(c.tasks_path, 'r') as tasks_f:
         data = tj.RVData.from_timeseries(tasks_f[apogee_ids[0]])
     joker_helper = joker._make_joker_helper(data)
-    _slice = slice(0, c.max_prior_samples // 2, 1)
+    _slice = slice(0, c.max_prior_samples, 1)
     batch = read_batch(c.prior_cache_file, joker_helper.packed_order,
                        slice_or_idx=_slice,
                        units=joker_helper.internal_units)
     ln_prior = read_batch(c.prior_cache_file, ['ln_prior'], _slice)[:, 0]
-    logger.log(1, f"Loaded {len(batch)} prior samples")
+    logger.log(1, f"Worker {worker_id}: Loaded {len(batch)} prior samples")
 
     for apogee_id in apogee_ids:
         with h5py.File(c.tasks_path, 'r') as tasks_f:
             data = tj.RVData.from_timeseries(tasks_f[apogee_id])
-        logger.debug(f"Running {apogee_id}  ({len(data)} visits)")
+        logger.debug(f"Worker {worker_id}: Running {apogee_id} "
+                     f"({len(data)} visits)")
 
         t0 = time.time()
         try:
             samples = joker.iterative_rejection_sample(
                 data=data, n_requested_samples=c.requested_samples_per_star,
                 prior_samples=batch,
+                init_batch_size=250_000,
+                growth_factor=32,
                 randomize_prior_order=c.randomize_prior_order,
                 return_logprobs=ln_prior, in_memory=True)
         except Exception as e:
@@ -68,8 +74,9 @@ def worker(task):
             continue
 
         dt = time.time() - t0
-        logger.debug(f"{apogee_id} ({len(data)} visits): done sampling - "
-                     f"{len(samples)} raw samples returned ({dt:.2f} seconds)")
+        logger.debug(f"Worker {worker_id}: {apogee_id} ({len(data)} visits): "
+                     f"done sampling - {len(samples)} raw samples returned "
+                     f"({dt:.2f} seconds)")
 
         # Ensure only positive K values
         samples.wrap_K()
@@ -143,9 +150,6 @@ def main(run_name, pool, overwrite=False, seed=None, limit=None):
     if overwrite:
         done_apogee_ids = list()
 
-    if done_apogee_ids:
-        logger.info(f"{len(done_apogee_ids)} already completed")
-
     # Get data files out of config file:
     logger.debug("Loading data...")
     allstar, _ = c.load_alldata()
@@ -159,6 +163,10 @@ def main(run_name, pool, overwrite=False, seed=None, limit=None):
     if limit is not None:
         apogee_ids = apogee_ids[:limit]
 
+    if done_apogee_ids:
+        logger.info(f"{len(done_apogee_ids)} already completed - "
+                    f"{len(apogee_ids)} left to process")
+
     # Load the prior:
     logger.debug("Creating JokerPrior instance...")
     prior = c.get_prior()
@@ -167,7 +175,10 @@ def main(run_name, pool, overwrite=False, seed=None, limit=None):
     atexit.register(tmpdir_combine, tmpdir, c.joker_results_path)
 
     logger.debug("Preparing tasks...")
-    n_tasks = min(16 * pool.size, len(apogee_ids))
+    if len(apogee_ids) > 10 * pool.size:
+        n_tasks = min(64 * pool.size, len(apogee_ids))
+    else:
+        n_tasks = pool.size
     tasks = batch_tasks(len(apogee_ids), n_tasks, arr=apogee_ids,
                         args=(c, prior, tmpdir, rnd))
 
