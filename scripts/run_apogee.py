@@ -176,7 +176,7 @@ def main(run_name, pool, overwrite=False, seed=None, limit=None):
 
     logger.debug("Preparing tasks...")
     if len(apogee_ids) > 10 * pool.size:
-        n_tasks = min(64 * pool.size, len(apogee_ids))
+        n_tasks = min(16 * pool.size, len(apogee_ids))
     else:
         n_tasks = pool.size
     tasks = batch_tasks(len(apogee_ids), n_tasks, arr=apogee_ids,
