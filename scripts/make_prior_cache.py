@@ -56,6 +56,7 @@ def main(name, pool, overwrite, seed, n_batches=None):
         n_batches = max(pool.size, 1)
 
     prior = c.get_prior()
+    prior.sample(size=1)  # initialize
     tasks = batch_tasks(c.n_prior_samples, n_batches,
                         args=(prior, random_state))
 
