@@ -23,7 +23,6 @@ from thejoker.utils import read_batch
 # Project
 from hq.log import logger
 from hq.config import Config
-from hq.script_helpers import get_parser
 
 
 def worker(task):
@@ -188,6 +187,9 @@ def main(run_name, pool, overwrite=False, seed=None, limit=None):
 
 
 if __name__ == '__main__':
+    from threadpoolctl import threadpool_limits
+    from hq.script_helpers import get_parser
+
     # Define parser object
     parser = get_parser(description='Run The Joker on APOGEE data',
                         loggers=[logger, joker_logger])
@@ -205,8 +207,9 @@ if __name__ == '__main__':
         seed = np.random.randint(2**32 - 1)
         logger.log(1, f"No random number seed specified, so using seed: {seed}")
 
-    with args.Pool(**args.Pool_kwargs) as pool:
-        main(run_name=args.run_name, pool=pool, overwrite=args.overwrite,
-             seed=args.seed, limit=args.limit)
+    with threadpool_limits(limits=1, user_api='blas'):
+        with args.Pool(**args.Pool_kwargs) as pool:
+            main(run_name=args.run_name, pool=pool, overwrite=args.overwrite,
+                 seed=args.seed, limit=args.limit)
 
     sys.exit(0)
