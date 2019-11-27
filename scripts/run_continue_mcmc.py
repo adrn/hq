@@ -87,13 +87,16 @@ def main(run_name, pool, overwrite=False):
 
 
 if __name__ == '__main__':
+    from threadpoolctl import threadpool_limits
+
     # Define parser object
     parser = get_parser(description='Run The Joker on APOGEE data',
                         loggers=[logger, joker_logger])
 
     args = parser.parse_args()
 
-    with args.Pool(**args.Pool_kwargs) as pool:
-        main(run_name=args.run_name, pool=pool, overwrite=args.overwrite)
+    with threadpool_limits(limits=1, user_api='blas'):
+        with args.Pool(**args.Pool_kwargs) as pool:
+            main(run_name=args.run_name, pool=pool, overwrite=args.overwrite)
 
     sys.exit(0)
