@@ -53,10 +53,12 @@ def get_parser(description="", loggers=None):
 
             # deal with multiproc:
             if parsed.mpi:
-                # from schwimmbad.mpi import MPIAsyncPool
-                # Pool = MPIAsyncPool
                 from schwimmbad.mpi import MPIPool
                 Pool = MPIPool
+                kw = dict()
+            elif parsed.mpiasync:
+                from schwimmbad.mpi import MPIAsyncPool
+                Pool = MPIAsyncPool
                 kw = dict()
             elif parsed.n_procs > 1:
                 from schwimmbad import MultiPool
@@ -93,5 +95,7 @@ def get_parser(description="", loggers=None):
                        type=int, help="Number of processes.")
     group.add_argument("--mpi", dest="mpi", default=False,
                        action="store_true", help="Run with MPI.")
+    group.add_argument("--mpiasync", dest="mpiasync", default=False,
+                       action="store_true", help="Run with MPI async.")
 
     return parser
