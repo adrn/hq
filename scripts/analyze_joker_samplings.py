@@ -4,7 +4,7 @@ import sys
 
 # Third-party
 import astropy.units as u
-from astropy.table import Table
+from astropy.table import Table, join
 import h5py
 import numpy as np
 from tqdm import tqdm
@@ -135,6 +135,11 @@ def main(run_name, pool):
 
     for k, unit in units.items():
         tbl[k] = tbl[k] * unit
+
+    # load results from running run_fit_constant.py:
+    constant_path = os.path.join(c.run_path, 'constant.fits')
+    constant_tbl = Table.read(constant_path)
+    tbl = join(tbl, constant_tbl, keys='APOGEE_ID')
 
     tbl.write(c.metadata_path, overwrite=True)
 
