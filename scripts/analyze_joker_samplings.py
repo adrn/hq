@@ -36,8 +36,8 @@ def worker(task):
                 logger.warning("No samples for: {}".format(apogee_id))
                 return None, None
 
-        # Load samples from The Joker and probabilities
-        samples = tj.JokerSamples.read(results_f[apogee_id])
+            # Load samples from The Joker and probabilities
+            samples = tj.JokerSamples.read(results_f[apogee_id])
 
         if len(samples) < 1:
             logger.warning("No samples for: {}".format(apogee_id))
