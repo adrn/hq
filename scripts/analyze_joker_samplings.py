@@ -97,7 +97,7 @@ def worker(task):
             units[k] = row[k].unit
             row[k] = row[k].value
 
-    return row, units
+    return Table(rows), units
 
 
 def main(run_name, pool):
