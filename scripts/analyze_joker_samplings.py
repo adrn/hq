@@ -4,7 +4,7 @@ import sys
 
 # Third-party
 import astropy.units as u
-from astropy.table import Table, vstack, join
+from astropy.table import QTable, vstack, join
 import h5py
 import numpy as np
 from tqdm import tqdm
@@ -27,6 +27,7 @@ def worker(task):
     logger.debug(f"Worker {worker_id}: {len(apogee_ids)} stars left to process")
 
     rows = []
+    units = None
     for apogee_id in apogee_ids:
         with h5py.File(c.tasks_path, 'r') as tasks_f:
             data = tj.RVData.from_timeseries(tasks_f[apogee_id])
@@ -89,15 +90,22 @@ def worker(task):
                                                + samples['ln_prior'])
                                      - np.log(len(samples)))
 
-        rows.append(row)
+        if units is None:
+            units = dict()
+            for k in row.keys():
+                if hasattr(row[k], 'unit'):
+                    units[k] = row[k].unit
 
-    units = dict()
-    for k in row:
-        if hasattr(row[k], 'unit'):
-            units[k] = row[k].unit
+        for k in units:
             row[k] = row[k].value
 
-    return Table(rows), units
+        rows.append(row)
+
+    tbl = QTable(rows)
+    for k in units:
+        tbl[k] = tbl[k] * units[k]
+
+    return tbl
 
 
 def main(run_name, pool):
@@ -118,18 +126,15 @@ def main(run_name, pool):
     logger.info(f'Done preparing tasks: {len(tasks)} stars in process queue')
 
     sub_tbls = []
-    for tbl, units in tqdm(pool.map(worker, tasks), total=len(tasks)):
+    for tbl in tqdm(pool.map(worker, tasks), total=len(tasks)):
         if tbl is not None:
             sub_tbls.append(tbl)
 
     tbl = vstack(sub_tbls)
 
-    for k, unit in units.items():
-        tbl[k] = tbl[k] * unit
-
     # load results from running run_fit_constant.py:
     constant_path = os.path.join(c.run_path, 'constant.fits')
-    constant_tbl = Table.read(constant_path)
+    constant_tbl = QTable.read(constant_path)
     tbl = join(tbl, constant_tbl, keys='APOGEE_ID')
 
     tbl.write(c.metadata_path, overwrite=True)
