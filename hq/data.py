@@ -50,7 +50,7 @@ def filter_alldata(allstar_tbl, allvisit_tbl,
 
     if starflag_bits is None:  # use deaults
         # VERY_BRIGHT_NEIGHBOR, SUSPECT_RV_COMBINATION, SUSPECT_BROAD_LINES
-        star_starflag_bits = [3, 16, 17]
+        star_starflag_bits = [3, 16]  # 17
 
         # LOW_SNR, PERSIST_HIGH, PERSIST_JUMP_POS, PERSIST_JUMP_NEG
         visit_starflag_bits = star_starflag_bits + [4, 9, 12, 13]
