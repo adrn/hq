@@ -11,7 +11,9 @@
   need to be followed up with standard MCMC:
   `python analyze_joker_samplings.py`
 * Run standard MCMC on the unimodal samplings to generate 256 samples:
-  `python run_continue_mcmc.py`
+
+    module load disBatch
+    sbatch -N10 -p cca disBatch.py mcmc_taskfile
 
 
 
