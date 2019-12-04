@@ -1,205 +1,186 @@
 # Standard library
-from os import path
+import os
 import sys
-import glob
 
 # Third-party
 import astropy.units as u
 from astropy.stats import median_absolute_deviation
-from astropy.table import Table
+from astropy.table import QTable, vstack
 import h5py
 import numpy as np
 from tqdm import tqdm
-import yaml
 from scipy.special import logsumexp
-from thejoker.sampler.mcmc import TheJokerMCMCModel
-from thejoker.sampler.fast_likelihood import batch_marginal_ln_likelihood
-from thejoker.sampler.io import pack_prior_samples
-from thejoker.sampler.likelihood import ln_prior
-from schwimmbad import SerialPool
-from schwimmbad.mpi import MPIAsyncPool
+import thejoker as tj
+from thejoker.multiproc_helpers import batch_tasks
+import pymc3 as pm
 
 # Project
-from hq.data import get_rvdata
 from hq.log import logger
-from hq.config import HQ_CACHE_PATH, config_to_alldata, config_to_jokerparams
-from hq.script_helpers import get_parser
-from hq.mcmc_helpers import ln_normal, gelman_rubin
-from hq.samples_analysis import (max_phase_gap, phase_coverage,
-                                 periods_spanned, phase_coverage_per_period)
+from hq.config import Config
+from hq.samples_analysis import (unimodal_P, max_phase_gap, phase_coverage,
+                                 periods_spanned, phase_coverage_per_period,
+                                 constant_model_evidence)
+
+from run_fit_constant import ln_normal
 
 
-def compute_ll_lp(data, samples, joker_params):
-    chunk = np.ascontiguousarray(pack_prior_samples(samples, u.km/u.s)[0])
-    lls = np.array(batch_marginal_ln_likelihood(chunk, data, joker_params))
-    lps = np.array(ln_prior(samples, joker_params))
-    return lls, lps
+def worker(task):
+    apogee_ids, worker_id, c = task
 
+    logger.debug(f"Worker {worker_id}: {len(apogee_ids)} stars left to process")
+    prior = c.get_prior()
 
-def worker(apogee_id, data, params, n_samples, chain_file):
-    model = TheJokerMCMCModel(params, data)
+    rows = []
+    sub_samples = {}
+    units = None
+    for apogee_id in apogee_ids:
+        with h5py.File(c.tasks_path, 'r') as tasks_f:
+            data = tj.RVData.from_timeseries(tasks_f[apogee_id])
 
-    samples = np.load(chain_file)
-    chain = samples['arr_0']
-    lnprob = samples['arr_1']
+        this_mcmc_path = os.path.join(c.run_path, 'mcmc', apogee_id)
+        if not os.path.exists(this_mcmc_path):
+            logger.debug(f"{apogee_id}: MCMC path does not exist at "
+                         f"{this_mcmc_path}")
 
-    R = gelman_rubin(chain)
+        joker = tj.TheJoker(prior)
+        with prior.model:
+            trace = pm.load_trace(this_mcmc_path)
 
-    row = dict()
-    row['APOGEE_ID'] = apogee_id
-    row['n_visits'] = len(data)
+        for i in trace.chains:
+            trace._straces[i].varnames.append('ln_prior')
+            trace._straces[i].varnames.append('logp')
 
-    row['gelman_rubin_max'] = np.max(R)
-    row['gelman_rubin_med'] = np.median(R)
+        samples = joker.trace_to_samples(trace, data)
+        samples['ln_prior'] = trace['ln_prior']
 
-    # HACK: some MAGIC NUMBERs below
-    flatlnprob = np.concatenate(lnprob)
-    flatchain = np.vstack(chain)
+        # TODO: re-enable likelihood calculation
+        # with prior.model as model:
+        #     _ = joker.setup_mcmc(data, samples[0])  # add Kepler model...
 
-    # Compute the MAP sample for summary vals:
-    MAP_idx = flatlnprob.argmax()
-    MAP_sample = model.unpack_samples(flatchain[MAP_idx])[0]
-    MAP_sample.t0 = data.t0
+        #     ln_likelihoods = []
+        #     for chain in trace.points():
+        #         ll = model.observed_RVs[0].logp_elemwise(chain)
+        #         ln_likelihoods.append(ll)
+        # ln_likelihood = np.array(ln_likelihoods).sum(axis=1)
+        # HACK:
+        ln_likelihood = trace['logp'] - samples['ln_prior']
 
-    # But also compute the maximum likelihood sample and value
-    samples = model.unpack_samples(flatchain)
-    ll, lp = compute_ll_lp(data, samples, params)
-    max_ll_idx = np.array(ll).argmax()
-    max_ll_sample = model.unpack_samples(flatchain[max_ll_idx])[0]
-    max_ll_sample.t0 = data.t0
+        row = dict()
+        row['APOGEE_ID'] = apogee_id
+        row['n_visits'] = len(data)
 
-    # Compute the evidence, p(D), for the Kepler model using the emcee samples:
-    row['kepler_ln_evidence'] = logsumexp(ll + lp) - np.log(len(ll))
+        MAP_idx = (samples['ln_prior'] + ln_likelihood).argmax()
+        MAP_sample = samples[MAP_idx]
+        for k in MAP_sample.par_names:
+            row[f'MAP_{k}'] = MAP_sample[k]
 
-    flatchain_thin = np.vstack(chain)
-    thin_samples = model.unpack_samples(flatchain_thin)
-    thin_samples.t0 = data.t0
+        err = dict()
+        for k in samples.par_names:
+            err[k] = 1.5 * median_absolute_deviation(samples[k])
+            row[f'MAP_{k}_err'] = err[k]
 
-    err = dict()
-    for k in thin_samples.keys():
-        err[k] = 1.5 * median_absolute_deviation(thin_samples[k])
+        row['t0_bmjd'] = MAP_sample.t0.tcb.mjd
 
-    for k in MAP_sample.keys():
-        row['MAP_{}'.format(k)] = MAP_sample[k]
-        row['MAP_{}_err'.format(k)] = err[k]
+        row['MAP_ln_likelihood'] = ln_likelihood[MAP_idx]
+        row['MAP_ln_prior'] = samples['ln_prior'][MAP_idx]
 
-    row['t0_bmjd'] = data.t0.tcb.mjd
+        row['joker_completed'] = False
+        row['mcmc_completed'] = True
 
-    row['max_phase_gap'] = max_phase_gap(MAP_sample, data)
-    row['phase_coverage'] = phase_coverage(MAP_sample, data)
-    row['periods_spanned'] = periods_spanned(MAP_sample, data)
-    row['phase_coverage_per_period'] = phase_coverage_per_period(MAP_sample,
-                                                                 data)
+        if unimodal_P(samples, data):
+            row['unimodal'] = True
+        else:
+            row['unimodal'] = False
 
-    # Use the max marginal likelihood sample
-    orbit = max_ll_sample.get_orbit(0)
-    var = (data.stddev**2 + max_ll_sample['jitter']**2).to_value((u.km/u.s)**2)
-    ll = ln_normal(orbit.radial_velocity(data.t).to_value(u.km/u.s),
-                   data.rv.to_value(u.km/u.s),
-                   var).sum()
-    row['max_unmarginalized_ln_likelihood'] = ll
+        row['baseline'] = (data.t.mjd.max() - data.t.mjd.min()) * u.day
+        row['max_phase_gap'] = max_phase_gap(MAP_sample, data)
+        row['phase_coverage'] = phase_coverage(MAP_sample, data)
+        row['periods_spanned'] = periods_spanned(MAP_sample, data)
+        row['phase_coverage_per_period'] = phase_coverage_per_period(MAP_sample,
+                                                                     data)
 
-    units = dict()
-    for k in row:
-        if hasattr(row[k], 'unit'):
-            units[k] = row[k].unit
+        # Use the max marginal likelihood sample
+        _unit = data.rv.unit
+        max_ll_sample = samples[ln_likelihood.argmax()]
+        orbit = max_ll_sample.get_orbit()
+        var = data.rv_err**2 + max_ll_sample['s']**2
+        ll = ln_normal(orbit.radial_velocity(data.t).to_value(_unit),
+                       data.rv.to_value(_unit),
+                       var.to_value(_unit**2)).sum()
+        row['max_unmarginalized_ln_likelihood'] = ll
+
+        # Compute the evidence p(D) for the Kepler model and for the constant RV
+        row['constant_ln_evidence'] = constant_model_evidence(data)
+        row['kepler_ln_evidence'] = (logsumexp(ln_likelihood +
+                                               samples['ln_prior'])
+                                     - np.log(len(samples)))
+
+        if units is None:
+            units = dict()
+            for k in row.keys():
+                if hasattr(row[k], 'unit'):
+                    units[k] = row[k].unit
+
+        for k in units:
             row[k] = row[k].value
 
-    # select out a random subset of the requested number of samples:
-    idx = np.random.choice(len(thin_samples), size=n_samples, replace=False)
-    samples = thin_samples[idx]
+        rows.append(row)
 
-    res = dict()
-    res['row'] = row
-    res['samples'] = samples
-    res['apogee_id'] = apogee_id
-    res['units'] = units
-    res['ln_prior'] = lp
-    res['ln_likelihood'] = ll
+        # Now write out the requested number of samples:
+        idx = np.random.choice(len(samples), size=c.requested_samples_per_star,
+                               replace=False)
+        sub_samples[apogee_id] = samples[idx]
+        sub_samples[apogee_id]['ln_prior'] = samples['ln_prior'][idx]
+        sub_samples[apogee_id]['ln_likelihood'] = ln_likelihood[idx]
 
-    return res
+    tbl = QTable(rows)
+    for k in units:
+        tbl[k] = tbl[k] * units[k]
+
+    return {'tbl': tbl, 'samples': sub_samples}
 
 
 def main(run_name, pool):
-    run_path = path.join(HQ_CACHE_PATH, run_name)
-    with open(path.join(run_path, 'config.yml'), 'r') as f:
-        config = yaml.load(f.read())
-    n_samples = config['requested_samples_per_star']
+    c = Config.from_run_name(run_name)
 
-    # Create an instance of The Joker:
-    params = config_to_jokerparams(config)
+    apogee_ids = sorted([x for x in os.listdir(os.path.join(c.run_path, 'mcmc'))
+                         if not x.startswith('.')])
 
-    # Get paths to files needed to run
-    emcee_metadata_path = path.join(HQ_CACHE_PATH, run_name,
-                                    'emcee-metadata.fits')
-    emcee_results_path = path.join(HQ_CACHE_PATH, run_name,
-                                   'emcee-samples.hdf5')
+    tasks = batch_tasks(len(apogee_ids), pool.size, arr=apogee_ids, args=(c, ))
+    logger.info(f'Done preparing tasks: {len(tasks)} stars in process queue')
 
-    chain_filenames = glob.glob(path.join(HQ_CACHE_PATH, run_name,
-                                          'emcee', '*.npz'))
-    apogee_ids = [path.splitext(path.basename(x))[0] for x in chain_filenames]
+    sub_tbls = []
+    all_samples = {}
+    for result in tqdm(pool.map(worker, tasks), total=len(tasks)):
+        if result is not None:
+            sub_tbls.append(result['tbl'])
+            all_samples.update(result['samples'])
 
-    # Load the data for this run:
-    allstar, allvisit = config_to_alldata(config)
-    allstar = allstar[np.isin(allstar['APOGEE_ID'], apogee_ids)]
-    allvisit = allvisit[np.isin(allvisit['APOGEE_ID'], allstar['APOGEE_ID'])]
+    # Write the MCMC metadata table
+    tbl = vstack(sub_tbls)
+    tbl.write(os.path.join(c.run_path, 'metadata-mcmc.fits'), overwrite=True)
 
-    tasks = []
-    for apogee_id, chain_file in zip(apogee_ids, chain_filenames):
-        # Load data
-        visits = allvisit[allvisit['APOGEE_ID'] == apogee_id]
-        data = get_rvdata(visits)
-        tasks.append([apogee_id, data, params, n_samples, chain_file])
-
-    rows = []
-    with h5py.File(emcee_results_path, 'a') as results_f:
-        for res in tqdm(pool.starmap(worker, tasks), total=len(tasks)):
-            rows.append(res['row'])
-
-            # replace existing samples
-            if res['apogee_id'] in results_f:
-                del results_f[res['apogee_id']]
-
-            g = results_f.create_group(res['apogee_id'])
-            res['samples'].to_hdf5(g)
-
-            g.create_dataset('ln_prior', data=res['ln_prior'])
-            g.create_dataset('ln_likelihood', data=res['ln_likelihood'])
-
-    tbl = Table(rows)
-
-    for k, unit in res['units'].items():
-        tbl[k] = tbl[k] * unit
-
-    tbl.write(emcee_metadata_path, overwrite=True)
+    # Now write out all of the individual samplings:
+    with h5py.File(c.mcmc_results_path, 'a') as results_f:
+        for apogee_id, samples in all_samples.items():
+            if apogee_id in results_f:
+                del results_f[apogee_id]
+            g = results_f.create_group(apogee_id)
+            samples.write(g)
 
 
 if __name__ == '__main__':
+    from threadpoolctl import threadpool_limits
+    from hq.script_helpers import get_parser
+
     # Define parser object
     parser = get_parser(description='TODO',
                         loggers=logger)
 
-    parser.add_argument("--name", dest="run_name", required=True,
-                        type=str, help="The name of the run.")
-
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument("--procs", dest="n_procs", default=1,
-                       type=int, help="Number of processes.")
-    group.add_argument("--mpi", dest="mpi", default=False,
-                       action="store_true", help="Run with MPI.")
-
-    parser.add_argument("-o", "--overwrite", dest="overwrite", default=False,
-                        action="store_true",
-                        help="Overwrite any existing samplings")
-
     args = parser.parse_args()
 
-    if args.mpi:
-        Pool = MPIAsyncPool
-    else:
-        Pool = SerialPool
-
-    with Pool() as pool:
-        main(run_name=args.run_name, pool=pool)
+    with threadpool_limits(limits=1, user_api='blas'):
+        with args.Pool(**args.Pool_kwargs) as pool:
+            main(run_name=args.run_name, pool=pool)
 
     sys.exit(0)

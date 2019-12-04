@@ -61,19 +61,38 @@ def main(c, prior, metadata_row, overwrite=False):
     data = get_rvdata(visits)
 
     t0 = time.time()
-    logger.debug(f"{apogee_id}: Starting MCMC sampling")
 
     # Read MAP sample:
     MAP_sample = extract_MAP_sample(metadata_row)
+    logger.log(1, f"{apogee_id}: MAP sample loaded")
 
     # Run MCMC:
-    with joker.prior.model:
+    with joker.prior.model as model:
+        logger.log(1, f"{apogee_id}: Setting up MCMC...")
         mcmc_init = joker.setup_mcmc(data, MAP_sample)
+        logger.log(1, f"{apogee_id}: ...setup complete")
+
+        if 'ln_prior' not in model.named_vars:
+            ln_prior_var = None
+            for k in joker.prior._nonlinear_equiv_units:
+                var = model.named_vars[k]
+                if ln_prior_var is None:
+                    ln_prior_var = var.distribution.logp(var)
+                else:
+                    ln_prior_var = ln_prior_var + var.distribution.logp(var)
+            pm.Deterministic('ln_prior', ln_prior_var)
+            logger.log(1, f"{apogee_id}: setting up ln_prior in pymc3 model")
+
+        if 'logp' not in model.named_vars:
+            pm.Deterministic('logp', model.logpt)
+            logger.log(1, f"{apogee_id}: setting up logp in pymc3 model")
+
+        logger.debug(f"{apogee_id}: Starting MCMC sampling")
         trace = pm.sample(start=mcmc_init, chains=4, cores=1,
                           step=xo.get_dense_nuts_step(target_accept=0.95),
                           tune=c.tune, draws=c.draws)
 
-    pm.save_trace(trace, directory=this_cache_path)
+    pm.save_trace(trace, directory=this_cache_path, overwrite=True)
     logger.debug("{apogee_id}: Finished MCMC sampling ({time:.2f} seconds)"
                  .format(apogee_id=apogee_id, time=time.time() - t0))
 
@@ -81,7 +100,7 @@ def main(c, prior, metadata_row, overwrite=False):
 if __name__ == '__main__':
     # Define parser object
     parser = get_parser(description='Run The Joker on APOGEE data',
-                        loggers=[logger]) 
+                        loggers=[logger])
 
     parser.add_argument("--num", type=int, default=None)
 

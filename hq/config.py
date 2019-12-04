@@ -51,6 +51,7 @@ class Config:
         with open(filename, 'r') as f:
             vals = yaml.safe_load(f.read())
 
+        self._run_path, run_name = os.path.split(filename)
         self._load_validate(vals)
 
     def _load_validate(self, vals):
@@ -99,13 +100,19 @@ class Config:
 
     @property
     def run_path(self):
-        _path = os.path.join(HQ_CACHE_PATH, self.name)
+        _path = self._run_path
+        if _path is None:
+            _path = os.path.join(HQ_CACHE_PATH, self.name)
         os.makedirs(_path, exist_ok=True)
         return _path
 
     @property
     def joker_results_path(self):
         return os.path.join(self.run_path, 'thejoker-samples.hdf5')
+
+    @property
+    def mcmc_results_path(self):
+        return os.path.join(self.run_path, 'mcmc-samples.hdf5')
 
     @property
     def tasks_path(self):

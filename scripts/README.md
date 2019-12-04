@@ -27,7 +27,9 @@
 * `cp ../hq/pkgdata/_test_prior.py $HQ_CACHE_PATH/hqtest/prior.py`
 * `python make_prior_cache.py --name hqtest`
 * `python make_tasks.py --name hqtest -o`
-* `mpirun -n 4 python run_apogee.py --name hqtest -o --mpi`
+* `mpirun -n 4 python run_apogee.py --name hqtest -o --mpi -v`
 * `python run_fit_constant.py --name hqtest -o`
-* `python analyze_joker_samplings.py --name hqtest -o`
-* `mpirun -n 4 python run_continue_mcmc.py --name hqtest -o --mpi`
+* `python analyze_joker_samplings.py --name hqtest -o -v`
+* `python run_continue_mcmc.py --name hqtest -o -v` (to get the number of rows)
+* `python run_continue_mcmc.py --name hqtest --num 0 -o -v`
+* `python analyze_mcmc_samplings.py --name hqtest -o -v`
