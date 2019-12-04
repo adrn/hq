@@ -1,14 +1,31 @@
 # Standard library
 import os
+import shutil
 import sys
 import time
 
+try:
+    # Hack to uniquify the theano cache path
+    arg_i = sys.argv.index('--num') + 1  # index of actual number
+    num = int(sys.argv[arg_i])
+    theano_path = f"/tmp/theano_cache/mcmc{num}"
+except ValueError:  # --num not passed
+    theano_path = "/tmp/theano_cache/mcmc"
+
+if os.path.exists(theano_path):
+    shutil.rmtree(theano_path)
+os.makedirs(theano_path)
+os.environ["THEANO_FLAGS"] = f"base_compiledir={theano_path}"
+print(f"Theano flags set to: " + os.environ['THEANO_FLAGS'])
+
+
 # Third-party
 from astropy.table import QTable
+import astropy.units as u
 import numpy as np
-from thejoker.logging import logger as joker_logger
-import thejoker as tj
+
 import pymc3 as pm
+import thejoker as tj
 import exoplanet as xo
 
 # Project
@@ -19,7 +36,7 @@ from hq.script_helpers import get_parser
 from hq.samples_analysis import extract_MAP_sample
 
 
-def main(c, metadata_row, overwrite=False):
+def main(c, prior, metadata_row, overwrite=False):
     mcmc_cache_path = os.path.join(c.run_path, 'mcmc')
     os.makedirs(mcmc_cache_path, exist_ok=True)
 
@@ -27,18 +44,15 @@ def main(c, metadata_row, overwrite=False):
 
     this_cache_path = os.path.join(mcmc_cache_path, apogee_id)
     if os.path.exists(this_cache_path) and not overwrite:
+        logger.info(f"{apogee_id} already done!")
         # Assume it's already done
         return
 
-    # Hack to uniquify the theano cache path
-    _path = os.path.join(c.run_path, "theano_cache", f"p{apogee_id}")
-    os.makedirs(_path, exist_ok=True)
-    os.environ["THEANO_FLAGS"] = f"base_compiledir={_path}"
-
     # Set up The Joker:
-    joker = tj.TheJoker(c.get_prior())
+    joker = tj.TheJoker(prior)
 
     # Load the data:
+    logger.debug(f"{apogee_id}: Loading all data")
     allstar, allvisit = c.load_alldata()
     allstar = allstar[np.isin(allstar['APOGEE_ID'].astype(str), apogee_id)]
     allvisit = allvisit[np.isin(allvisit['APOGEE_ID'].astype(str),
@@ -65,11 +79,9 @@ def main(c, metadata_row, overwrite=False):
 
 
 if __name__ == '__main__':
-    from threadpoolctl import threadpool_limits
-
     # Define parser object
     parser = get_parser(description='Run The Joker on APOGEE data',
-                        loggers=[logger, joker_logger])
+                        loggers=[logger]) 
 
     parser.add_argument("--num", type=int, default=None)
 
@@ -77,6 +89,8 @@ if __name__ == '__main__':
 
     # Load the analyzed joker samplings file, only keep unimodal:
     c = Config.from_run_name(args.run_name)
+    prior = c.get_prior()
+
     joker_metadata = QTable.read(c.metadata_path)
     unimodal_tbl = joker_metadata[joker_metadata['unimodal'] &
                                   (joker_metadata['periods_spanned'] > 1.)]
@@ -86,9 +100,8 @@ if __name__ == '__main__':
 
     metadata_row = unimodal_tbl[args.num]
 
-    with threadpool_limits(limits=1, user_api='blas'):
-        main(c,
-             metadata_row=metadata_row,
-             overwrite=args.overwrite)
+    main(c, prior,
+         metadata_row=metadata_row,
+         overwrite=args.overwrite)
 
     sys.exit(0)
