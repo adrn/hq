@@ -33,8 +33,16 @@ def make_run(name):
     with open(new_config_path, 'w') as f:
         f.write(template_config)
 
-    logger.info(f"Created an HQ run at: {run_path}\n\tNow edit the "
-                f"configuration file at: {new_config_path}")
+    # Now copy template prior:
+    prior_path = os.path.join(HQ_ROOT_PATH, 'pkgdata', 'template_prior.py')
+    new_prior_path = os.path.join(run_path, 'prior.py')
+    with open(prior_path, 'r') as f:
+        with open(new_prior_path, 'w') as new_f:
+            new_f.write(f.read())
+
+    logger.info(f"Created an HQ run at: {run_path}\n"
+                f"\tNow edit the configuration file at: {new_config_path}\n"
+                f"\tAnd edit the prior specification file at: {new_prior_path}")
 
 
 if __name__ == "__main__":
