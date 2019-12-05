@@ -1,116 +1,190 @@
 # Standard library
-from os.path import join, exists
+import atexit
+import os
+import socket
 import sys
+import time
 
 # Third-party
+# Third-party
+import theano
+theano.config.optimizer = 'None'
+theano.config.mode = 'FAST_COMPILE'
+theano.config.reoptimize_unpickled_function = False
+theano.config.cxx = ""
+from astropy.table import QTable
 import h5py
 import numpy as np
 from thejoker.log import log as joker_logger
-from thejoker.sampler import TheJoker
-from thejoker.data import RVData
-from tqdm import tqdm
-import yaml
-from schwimmbad import SerialPool
-from schwimmbad.mpi import MPIAsyncPool
+import thejoker as tj
+from thejoker.multiproc_helpers import batch_tasks
+from thejoker.utils import read_batch
 
 # Project
-from hq.data import get_rvdata
 from hq.log import logger
-from hq.config import (HQ_CACHE_PATH, config_to_jokerparams,
-                       config_to_prior_cache, config_to_alldata)
-from hq.script_helpers import get_parser
+from hq.config import Config
+from hq.samples_analysis import extract_MAP_sample
 
-from run_apogee import worker, callback
+from run_apogee import callback, tmpdir_combine
+
+
+def worker(task):
+    apogee_ids, worker_id, c, results_path, prior, tmpdir, global_rnd = task
+
+    # This worker's results:
+    results_filename = os.path.join(tmpdir, f'worker-{worker_id}.hdf5')
+    metadata = QTable.read(c.metadata_path)
+
+    rnd = global_rnd.seed(worker_id)
+    logger.log(1, f"Worker {worker_id}: Creating TheJoker instance with {rnd}")
+    prior = c.get_prior()
+    joker = tj.TheJoker(prior, random_state=rnd)
+    logger.debug(f"Worker {worker_id} on node {socket.gethostname()}: "
+                 f"{len(apogee_ids)} stars left to process")
+
+    # Initialize to get packed column order:
+    logger.log(1,
+               f"Worker {worker_id}: Loading prior samples from cache "
+               f"{c.prior_cache_file}")
+    with h5py.File(c.tasks_path, 'r') as tasks_f:
+        data = tj.RVData.from_timeseries(tasks_f[apogee_ids[0]])
+    joker_helper = joker._make_joker_helper(data)
+    _slice = slice(0, c.max_prior_samples, 1)
+    batch = read_batch(c.prior_cache_file, joker_helper.packed_order,
+                       slice_or_idx=_slice,
+                       units=joker_helper.internal_units)
+    ln_prior = read_batch(c.prior_cache_file, ['ln_prior'], _slice)[:, 0]
+    logger.log(1, f"Worker {worker_id}: Loaded {len(batch)} prior samples")
+
+    for apogee_id in apogee_ids:
+        if apogee_id not in metadata['APOGEE_ID']:
+            logger.debug(f"{apogee_id} not found in metadata file!")
+            continue
+
+        with h5py.File(c.tasks_path, 'r') as tasks_f:
+            data = tj.RVData.from_timeseries(tasks_f[apogee_id])
+
+        # Subtract out MAP sample, run on residual:
+        metadata_row = metadata[metadata['APOGEE_ID'] == apogee_id]
+        MAP_sample = extract_MAP_sample(metadata_row)
+        orbit = MAP_sample.get_orbit(0)
+        new_rv = data.rv - orbit.radial_velocity(data.t)
+        data = tj.RVData(t=data.t,
+                         rv=new_rv,
+                         rv_err=data.rv_err)
+        logger.debug(f"Worker {worker_id}: Running {apogee_id} "
+                     f"({len(data)} visits)")
+
+        t0 = time.time()
+        try:
+            samples = joker.iterative_rejection_sample(
+                data=data, n_requested_samples=c.requested_samples_per_star,
+                prior_samples=batch,
+                init_batch_size=250_000,
+                growth_factor=32,
+                randomize_prior_order=c.randomize_prior_order,
+                return_logprobs=ln_prior, in_memory=True)
+        except Exception as e:
+            logger.warning(f"\t Failed sampling for star {apogee_id} "
+                           f"\n Error: {e}")
+            continue
+
+        dt = time.time() - t0
+        logger.debug(f"Worker {worker_id}: {apogee_id} ({len(data)} visits): "
+                     f"done sampling - {len(samples)} raw samples returned "
+                     f"({dt:.2f} seconds)")
+
+        # Ensure only positive K values
+        samples.wrap_K()
+
+        with h5py.File(results_filename, 'a') as results_f:
+            if apogee_id in results_f:
+                del results_f[apogee_id]
+            g = results_f.create_group(apogee_id)
+            samples.write(g)
+
+    result = {'tmp_filename': results_filename,
+              'joker_results_path': results_path,
+              'hostname': socket.gethostname(),
+              'worker_id': worker_id}
+    return result
 
 
 def main(run_name, pool, overwrite=False, seed=None):
-    run_path = join(HQ_CACHE_PATH, run_name)
-    with open(join(run_path, 'config.yml'), 'r') as f:
-        config = yaml.load(f.read())
+    c = Config.from_run_name(run_name)
 
     # Get paths to files needed to run
-    params = config_to_jokerparams(config)
-    prior_cache_path = config_to_prior_cache(config, params)
-    results_path = join(HQ_CACHE_PATH, run_name,
-                        'thejoker-control.hdf5')
+    results_path = os.path.join(c.run_path, 'thejoker-control.hdf5')
 
-    if not exists(prior_cache_path):
-        raise IOError("Prior cache file '{0}' does not exist! Did you run "
-                      "make_prior_cache.py?")
+    # Make directory for temp. files, one per worker:
+    tmpdir = os.path.join(c.run_path, 'null-control')
+    if os.path.exists(tmpdir):
+        logger.warning(f"Stale temp. file directory found at {tmpdir}: "
+                       "combining files first...")
+        tmpdir_combine(tmpdir, results_path)
 
-    with h5py.File(results_path, 'a') as f: # ensure the file exists
-        pass
+    # ensure the results file exists
+    logger.debug("Loading past results...")
+    with h5py.File(c.joker_results_path, 'a') as f:
+        done_apogee_ids = list(f.keys())
+    if overwrite:
+        done_apogee_ids = list()
 
     # Get data files out of config file:
-    allstar, allvisit = config_to_alldata(config)
-
-    # HACK: MAGIC NUMBER
-    # Reduce the sample size:
-    n_control = len(allstar) // 10
-    idx = np.random.choice(len(allstar), size=n_control, replace=False)
-    allstar = allstar[idx]
-    allvisit = allvisit[np.isin(allvisit['APOGEE_ID'], allstar['APOGEE_ID'])]
+    logger.debug("Loading data...")
+    allstar, _ = c.load_alldata()
 
     # Create TheJoker sampler instance with the specified random seed and pool
     rnd = np.random.RandomState(seed=seed)
+    logger.debug(f"Processing pool has size = {pool.size}")
 
-    logger.debug("Creating TheJoker instance with {0}".format(rnd))
-    joker = TheJoker(params, random_state=rnd, n_batches=8) # HACK: MAGIC NUMBER
-    logger.debug("Processing pool has size = {0}".format(pool.size))
-    logger.debug("{0} stars left to process for run '{1}'"
-                 .format(len(allstar), run_name))
+    apogee_ids = np.unique(allstar['APOGEE_ID'])
 
-    tasks = []
-    logger.debug("Loading data and preparing tasks...")
-    for star in tqdm(allstar):
-        visits = allvisit[allvisit['APOGEE_ID'] == star['APOGEE_ID']]
-        data = get_rvdata(visits)
+    if done_apogee_ids:
+        logger.info(f"{len(done_apogee_ids)} already completed - "
+                    f"{len(apogee_ids)} left to process")
 
-        # Overwrite the data with a null signal!
-        new_rv = rnd.normal(np.mean(data.rv).value,
-                            data.stddev.value) * data.rv.unit
-        new_data = RVData(rv=new_rv, t=data.t, stddev=data.stddev)
+    # Load the prior:
+    logger.debug("Creating JokerPrior instance...")
+    prior = c.get_prior()
 
-        tasks.append([joker, star['APOGEE_ID'], new_data, config, results_path])
+    os.makedirs(tmpdir)
+    atexit.register(tmpdir_combine, tmpdir, results_path)
 
-    logger.info('Done preparing tasks: {0} stars in process queue'
-                .format(len(tasks)))
+    logger.debug("Preparing tasks...")
+    if len(apogee_ids) > 10 * pool.size:
+        n_tasks = min(16 * pool.size, len(apogee_ids))
+    else:
+        n_tasks = pool.size
+    tasks = batch_tasks(len(apogee_ids), n_tasks, arr=apogee_ids,
+                        args=(c, results_path, prior, tmpdir, rnd))
 
-    for r in tqdm(pool.starmap(worker, tasks, callback=callback),
-                  total=len(tasks)):
+    logger.info(f'Done preparing tasks: split into {len(tasks)} task chunks')
+    for r in pool.map(worker, tasks, callback=callback):
         pass
 
 
 if __name__ == '__main__':
+    from threadpoolctl import threadpool_limits
+    from hq.script_helpers import get_parser
+
     # Define parser object
     parser = get_parser(description='Run The Joker on APOGEE data',
                         loggers=[logger, joker_logger])
 
-    parser.add_argument("--name", dest="run_name", required=True,
-                        type=str, help="The name of the run.")
-
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument("--procs", dest="n_procs", default=1,
-                       type=int, help="Number of processes.")
-    group.add_argument("--mpi", dest="mpi", default=False,
-                       action="store_true", help="Run with MPI.")
-
-    parser.add_argument("-s", "--seed", dest="seed", default=42, type=int,
+    parser.add_argument("-s", "--seed", dest="seed", default=None, type=int,
                         help="Random number seed")
-
-    parser.add_argument("-o", "--overwrite", dest="overwrite", default=False,
-                        action="store_true",
-                        help="Overwrite any existing samplings")
 
     args = parser.parse_args()
 
-    if args.mpi:
-        Pool = MPIAsyncPool
-    else:
-        Pool = SerialPool
+    seed = args.seed
+    if seed is None:
+        seed = np.random.randint(2**32 - 1)
+        logger.log(1, f"No random number seed specified, so using seed: {seed}")
 
-    with Pool() as pool:
-        main(run_name=args.run_name, pool=pool, overwrite=args.overwrite,
-             seed=args.seed)
+    with threadpool_limits(limits=1, user_api='blas'):
+        with args.Pool(**args.Pool_kwargs) as pool:
+            main(run_name=args.run_name, pool=pool, overwrite=args.overwrite,
+                 seed=args.seed)
 
     sys.exit(0)
