@@ -2,7 +2,7 @@
 #SBATCH -J apogee-run
 #SBATCH -o logs/apogee-run.o%j
 #SBATCH -e logs/apogee-run.e%j
-#SBATCH -n 720
+#SBATCH -n 80
 #SBATCH -t 24:00:00
 #SBATCH -p cca
 #SBATCH --constraint=skylake

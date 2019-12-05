@@ -35,12 +35,29 @@ HQ Pipeline on Rusty
 
      sbatch 1-setup.sh
 
-* 2-run.sh
+* Run The Joker on all of the APOGEE tasks:
+
+     sbatch 2-run.sh
 
 * 3-fit-constant.sh
 
 * 4-analyze.sh
 
-* 5-mcmc.sh
+* How many unimodal stars? Run an interactive job with:
 
-        
+      python run_continue_mcmc.py --name $HQ_RUN -v
+
+  and edit the `mcmc_taskfile` with this number of repeat tasks.
+
+* Run the MCMC shite:
+      
+      module load disBatch
+      sbatch -N10 --constraint=skylake -p cca disBatch.py mcmc_taskfile
+
+* 6-mcmc-analyze
+
+* 7-null-control.sh
+
+
+
+* Prepare-VAC.ipynb
