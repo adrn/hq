@@ -1,0 +1,1 @@
+#DISBATCH REPEAT 1306 start 0 source /mnt/home/apricewhelan/.bash_profile; init_conda; conda activate hq; cd /mnt/ceph/users/apricewhelan/projects/hq/scripts; python run_continue_mcmc.py --name $HQ_RUN --num ${DISBATCH_REPEAT_INDEX} -v &> ../mpi/mcmc-logs/disbatch_${DISBATCH_REPEAT_INDEX}.log
