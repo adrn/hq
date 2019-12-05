@@ -9,13 +9,13 @@
 
 source ~/.bash_profile
 init_conda
-conda activate hq
+conda activate hq2
 echo $HQ_RUN
 
 cd /mnt/ceph/users/apricewhelan/projects/hq/scripts
 
 date
 
-stdbuf -o0 -e0 mpirun -n $SLURM_NTASKS python3 -m mpi4py.futures analyze_mcmc_samplings.py --name $HQ_RUN -v --mpi
+stdbuf -o0 -e0 mpirun -n $SLURM_NTASKS python3  analyze_mcmc_samplings.py --name $HQ_RUN -v --mpi
 
 date
