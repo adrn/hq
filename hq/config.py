@@ -122,6 +122,14 @@ class Config:
     def metadata_path(self):
         return os.path.join(self.run_path, 'metadata.fits')
 
+    @property
+    def metadata_joker_path(self):
+        return os.path.join(self.run_path, 'metadata-thejoker.fits')
+
+    @property
+    def metadata_mcmc_path(self):
+        return os.path.join(self.run_path, 'metadata-mcmc.fits')
+
     # ------------------------------------------------------------------------
     # Data loading:
 

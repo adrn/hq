@@ -137,7 +137,7 @@ def main(run_name, pool):
     constant_tbl = QTable.read(constant_path)
     tbl = join(tbl, constant_tbl, keys='APOGEE_ID')
 
-    tbl.write(c.metadata_path, overwrite=True)
+    tbl.write(c.metadata_joker_path, overwrite=True)
 
 
 if __name__ == '__main__':
