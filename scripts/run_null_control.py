@@ -15,7 +15,7 @@ theano.config.cxx = ""
 from astropy.table import QTable
 import h5py
 import numpy as np
-from thejoker.log import log as joker_logger
+from thejoker.logging import logger as joker_logger
 import thejoker as tj
 from thejoker.multiproc_helpers import batch_tasks
 from thejoker.utils import read_batch
@@ -125,7 +125,7 @@ def main(run_name, pool, overwrite=False, seed=None):
 
     # ensure the results file exists
     logger.debug("Loading past results...")
-    with h5py.File(c.joker_results_path, 'a') as f:
+    with h5py.File(results_path, 'a') as f:
         done_apogee_ids = list(f.keys())
     if overwrite:
         done_apogee_ids = list()
@@ -133,6 +133,7 @@ def main(run_name, pool, overwrite=False, seed=None):
     # Get data files out of config file:
     logger.debug("Loading data...")
     allstar, _ = c.load_alldata()
+    allstar = allstar[~np.isin(allstar['APOGEE_ID'], done_apogee_ids)]
 
     # Create TheJoker sampler instance with the specified random seed and pool
     rnd = np.random.RandomState(seed=seed)

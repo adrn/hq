@@ -33,3 +33,4 @@
 * `python run_continue_mcmc.py --name hqtest -o -v` (to get the number of rows)
 * `python run_continue_mcmc.py --name hqtest --num 0 -o -v`
 * `python analyze_mcmc_samplings.py --name hqtest -o -v`
+* `python run_null_control.py --name hqtest -v`
