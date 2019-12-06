@@ -3,6 +3,11 @@ import os
 import sys
 
 # Third-party
+import theano
+theano.config.optimizer = 'None'
+theano.config.mode = 'FAST_COMPILE'
+theano.config.reoptimize_unpickled_function = False
+theano.config.cxx = ""
 import astropy.units as u
 from astropy.stats import median_absolute_deviation
 from astropy.table import QTable, vstack
