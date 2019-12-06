@@ -110,7 +110,7 @@ if __name__ == '__main__':
     c = Config.from_run_name(args.run_name)
     prior = c.get_prior()
 
-    joker_metadata = QTable.read(c.metadata_path)
+    joker_metadata = QTable.read(c.metadata_joker_path)
     unimodal_tbl = joker_metadata[joker_metadata['unimodal'] &
                                   (joker_metadata['periods_spanned'] > 1.)]
     if args.num is None:

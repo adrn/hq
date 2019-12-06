@@ -158,7 +158,7 @@ def main(run_name, pool):
 
     # Write the MCMC metadata table
     tbl = vstack(sub_tbls)
-    tbl.write(os.path.join(c.run_path, 'metadata-mcmc.fits'), overwrite=True)
+    tbl.write(c.metadata_mcmc_path, overwrite=True)
 
     # Now write out all of the individual samplings:
     with h5py.File(c.mcmc_results_path, 'a') as results_f:
