@@ -39,9 +39,9 @@ HQ Pipeline on Rusty
 
      sbatch 2-run.sh
 
-* 3-fit-constant.sh
+* sbatch 3-fit-constant.sh
 
-* 4-analyze.sh
+* sbatch 4-analyze.sh
 
 * How many unimodal stars? Run an interactive job with:
 
@@ -54,10 +54,8 @@ HQ Pipeline on Rusty
       module load disBatch
       sbatch -N10 --constraint=skylake -p cca disBatch.py mcmc_taskfile
 
-* 6-mcmc-analyze
+* sbatch 6-mcmc-analyze.sh
+
+* TODO: combine metadata-thejoker and metadata-mcmc...Prepare-VAC.ipynb? Could make a script that joins the two into metadata.fits
 
 * 7-null-control.sh
-
-
-
-* Prepare-VAC.ipynb
