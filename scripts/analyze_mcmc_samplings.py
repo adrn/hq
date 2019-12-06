@@ -10,7 +10,7 @@ theano.config.reoptimize_unpickled_function = False
 theano.config.cxx = ""
 import astropy.units as u
 from astropy.stats import median_absolute_deviation
-from astropy.table import QTable, vstack
+from astropy.table import Table, QTable, vstack
 import h5py
 import numpy as np
 from tqdm import tqdm
@@ -96,13 +96,24 @@ def worker(task):
             row['unimodal'] = True
         else:
             row['unimodal'] = False
+        
+        stat_df = pm.summary(trace)
+        row['gelman_rubin_max'] = stat_df['r_hat'].max()
+        row['mcmc_success'] = row['gelman_rubin_max'] <= 1.1
 
         row['baseline'] = (data.t.mjd.max() - data.t.mjd.min()) * u.day
-        row['max_phase_gap'] = max_phase_gap(MAP_sample, data)
-        row['phase_coverage'] = phase_coverage(MAP_sample, data)
-        row['periods_spanned'] = periods_spanned(MAP_sample, data)
-        row['phase_coverage_per_period'] = phase_coverage_per_period(MAP_sample,
-                                                                     data)
+
+        if row['mcmc_success']:
+            row['max_phase_gap'] = max_phase_gap(MAP_sample, data)
+            row['phase_coverage'] = phase_coverage(MAP_sample, data)
+            row['periods_spanned'] = periods_spanned(MAP_sample, data)
+            row['phase_coverage_per_period'] = phase_coverage_per_period(MAP_sample,
+                                                                         data)
+        else:
+            row['max_phase_gap'] = np.nan * u.one
+            row['phase_coverage'] = np.nan * u.one
+            row['periods_spanned'] = np.nan * u.one
+            row['phase_coverage_per_period'] = np.nan * u.one
 
         # Use the max marginal likelihood sample
         _unit = data.rv.unit
@@ -127,7 +138,8 @@ def worker(task):
                     units[k] = row[k].unit
 
         for k in units:
-            row[k] = row[k].value
+            if hasattr(row[k], 'unit'):
+                row[k] = row[k].value
 
         rows.append(row)
 
@@ -138,11 +150,8 @@ def worker(task):
         sub_samples[apogee_id]['ln_prior'] = samples['ln_prior'][idx]
         sub_samples[apogee_id]['ln_likelihood'] = ln_likelihood[idx]
 
-    tbl = QTable(rows)
-    for k in units:
-        tbl[k] = tbl[k] * units[k]
-
-    return {'tbl': tbl, 'samples': sub_samples}
+    tbl = Table(rows)
+    return {'tbl': tbl, 'samples': sub_samples, 'units': units}
 
 
 def main(run_name, pool):
@@ -163,6 +172,9 @@ def main(run_name, pool):
 
     # Write the MCMC metadata table
     tbl = vstack(sub_tbls)
+    for k in result['units']:
+        tbl[k].unit = result['units'][k]
+    tbl = QTable(tbl)
     tbl.write(c.metadata_mcmc_path, overwrite=True)
 
     # Now write out all of the individual samplings:
@@ -184,8 +196,8 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    with threadpool_limits(limits=1, user_api='blas'):
-        with args.Pool(**args.Pool_kwargs) as pool:
-            main(run_name=args.run_name, pool=pool)
+    # with threadpool_limits(limits=1, user_api='blas'):
+    with args.Pool(**args.Pool_kwargs) as pool:
+        main(run_name=args.run_name, pool=pool)
 
     sys.exit(0)
