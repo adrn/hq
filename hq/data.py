@@ -11,6 +11,12 @@ def get_new_err(visits, a, b, s):
     return np.sqrt(s**2 + err**2 + a*snr**b)
 
 
+def get_new_err_nidever(visits):
+    err = visits['VRELERR']
+    var = (3.5*err**1.2)**2 + 0.072**2
+    return np.sqrt(var)
+
+
 def get_rvdata(visits, apply_error_calibration=True, float64=True,
                assume_tcb=False):
     from thejoker import RVData
@@ -26,8 +32,12 @@ def get_rvdata(visits, apply_error_calibration=True, float64=True,
 
     if apply_error_calibration:
         # see notebook: Calibrate-visit-rv-err.ipynb
-        rv_err = get_new_err(visits,
-                             a=145.869, b=-2.8215, s=0.168)
+        # rv_err = get_new_err(visits,
+        #                      a=145.869, b=-2.8215, s=0.168)
+
+        # See email from Nidever, apogee2-rvvar 1421
+        rv_err = get_new_err_nidever(visits)
+
     else:
         rv_err = visits['VRELERR']
 
@@ -44,7 +54,7 @@ def filter_alldata(allstar_tbl, allvisit_tbl,
                                 np.isfinite(allvisit_tbl['VRELERR'])]
     allvisit_tbl = allvisit_tbl[(allvisit_tbl['VRELERR'] < 100.) &
                                 (allvisit_tbl['VHELIO'] != -9999) &
-                                (np.abs(allvisit_tbl['VHELIO']) < 1e3)]
+                                (np.abs(allvisit_tbl['VHELIO']) < 500.)]  # NOTE
     logger.log(1, "Filtered bad/NaN/-9999 data")
     logger.log(1, "Min. number of visits: {0}".format(min_nvisits))
 
