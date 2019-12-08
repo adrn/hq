@@ -111,8 +111,7 @@ if __name__ == '__main__':
     prior = c.get_prior()
 
     joker_metadata = QTable.read(c.metadata_joker_path)
-    unimodal_tbl = joker_metadata[joker_metadata['unimodal'] &
-                                  (joker_metadata['periods_spanned'] > 1.)]
+    unimodal_tbl = joker_metadata[joker_metadata['unimodal']]
     if args.num is None:
         print(f"{len(unimodal_tbl)} rows in unimodal table - exiting...")
         sys.exit(0)
