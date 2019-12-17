@@ -140,8 +140,11 @@ class Config:
                                            min_nvisits=self.min_nvisits)
         return allstar, allvisit
 
-    def get_prior(self):
+    def get_prior(self, which=None):
         spec = iu.spec_from_file_location("prior", self.prior_file)
         user_prior = iu.module_from_spec(spec)
         spec.loader.exec_module(user_prior)
-        return user_prior.prior
+        if which == 'mcmc':
+            return user_prior.prior_mcmc
+        else:
+            return user_prior.prior
