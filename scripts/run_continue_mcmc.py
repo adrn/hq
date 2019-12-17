@@ -21,7 +21,6 @@ print(f"Theano flags set to: " + os.environ['THEANO_FLAGS'])
 
 # Third-party
 from astropy.table import QTable
-import astropy.units as u
 import numpy as np
 
 import pymc3 as pm
@@ -108,7 +107,7 @@ if __name__ == '__main__':
 
     # Load the analyzed joker samplings file, only keep unimodal:
     c = Config.from_run_name(args.run_name)
-    prior = c.get_prior()
+    prior = c.get_prior('mcmc')
 
     joker_metadata = QTable.read(c.metadata_joker_path)
     unimodal_tbl = joker_metadata[joker_metadata['unimodal']]
