@@ -75,10 +75,17 @@ def main(c, prior, metadata_row, overwrite=False):
             ln_prior_var = None
             for k in joker.prior._nonlinear_equiv_units:
                 var = model.named_vars[k]
-                if ln_prior_var is None:
-                    ln_prior_var = var.distribution.logp(var)
-                else:
-                    ln_prior_var = ln_prior_var + var.distribution.logp(var)
+                try:
+                    if ln_prior_var is None:
+                        ln_prior_var = var.distribution.logp(var)
+                    else:
+                        ln_prior_var = ln_prior_var + var.distribution.logp(var)
+                except Exception as e:
+                    logger.warning("Cannot auto-compute log-prior value for "
+                                   f"parameter {var}.")
+                    print(e)
+                    continue
+
             pm.Deterministic('ln_prior', ln_prior_var)
             logger.log(1, f"{apogee_id}: setting up ln_prior in pymc3 model")
 
