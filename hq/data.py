@@ -71,7 +71,8 @@ def filter_alldata(allstar_tbl, allvisit_tbl,
                .format(star_starflag_mask))
     logger.log(1, "Using STARFLAG bitmask for allVisit: {0}"
                .format(visit_starflag_mask))
-    allvisit_tbl = allvisit_tbl[(allvisit_tbl['STARFLAG'] & visit_starflag_mask) == 0]
+    allvisit_tbl = allvisit_tbl[(allvisit_tbl['STARFLAG']
+                                 & visit_starflag_mask) == 0]
 
     # After quality and bitmask cut, figure out what APOGEE_IDs remain
     v_apogee_ids, counts = np.unique(allvisit_tbl['APOGEE_ID'],

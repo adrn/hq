@@ -178,3 +178,24 @@ def extract_MAP_sample(row):
         sample[colname[4:]] = u.Quantity([row[colname]])
 
     return sample[0]
+
+
+def is_n_modal(data, samples, n_clusters=2):
+    from sklearn.cluster import KMeans
+    clf = KMeans(n_clusters=n_clusters)
+
+    lnP = np.log(samples['P'].value).reshape(-1, 1)
+    y = clf.fit_predict(lnP)
+
+    unimodals = []
+    means = []
+    for j in np.unique(y):
+        sub_samples = samples[y == j]
+        if len(sub_samples) == 1:
+            unimodals.append(True)
+            means.append(sub_samples)
+        else:
+            unimodals.append(unimodal_P(sub_samples, data))
+            means.append(MAP_sample(sub_samples))
+
+    return all(unimodals), means
