@@ -189,6 +189,7 @@ def is_n_modal(data, samples, n_clusters=2):
 
     unimodals = []
     means = []
+    n_per_mode = []
     for j in np.unique(y):
         sub_samples = samples[y == j]
         if len(sub_samples) == 1:
@@ -197,5 +198,6 @@ def is_n_modal(data, samples, n_clusters=2):
         else:
             unimodals.append(unimodal_P(sub_samples, data))
             means.append(MAP_sample(sub_samples))
+        n_per_mode.append((y==j).sum())
 
-    return all(unimodals), means
+    return all(unimodals), means, n_per_mode
