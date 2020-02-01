@@ -7,7 +7,6 @@ import sys
 import numpy as np
 import h5py
 from tqdm import tqdm
-import yaml
 import thejoker as tj
 
 # Project
@@ -15,7 +14,9 @@ from hq.log import logger
 from hq.config import Config
 
 
-def worker(apogee_id, results_path, output_path, config):
+def worker(task):
+    apogee_id, results_path, output_path, config = task
+
     with h5py.File(results_path, 'r') as f:
         samples = tj.JokerSamples.read(f[apogee_id])
 
@@ -32,7 +33,7 @@ def worker(apogee_id, results_path, output_path, config):
     # for k in more_cols:
     #     res[k] = more_cols[k]
 
-    res.write(join(output_path, apogee_id[:4], '{}.fits.gz'.format(apogee_id)),
+    res.write(join(output_path, apogee_id[:4], f'{apogee_id}.fits.gz'),
               overwrite=True)
 
 
@@ -75,7 +76,7 @@ if __name__ == '__main__':
     from hq.script_helpers import get_parser
 
     # Define parser object
-    parser = get_parser(description='TODO', loggers=[])
+    parser = get_parser(description='TODO', loggers=[logger])
 
     args = parser.parse_args()
 
