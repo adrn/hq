@@ -4,8 +4,9 @@ from os.path import join
 import sys
 
 # Third-party
+import astropy.table as at
 import numpy as np
-import h5py
+import tables as tb
 from tqdm import tqdm
 import thejoker as tj
 
@@ -16,9 +17,9 @@ from hq.config import Config
 
 def worker(task):
     apogee_id, results_path, output_path, config = task
-
-    with h5py.File(results_path, 'r') as f:
-        samples = tj.JokerSamples.read(f[apogee_id])
+    
+    with tb.open_file(results_path, 'r') as f:
+        samples = tj.JokerSamples.read(f.root[apogee_id])
 
         # more_cols = dict()
         # if ('ln_likelihood' in f[apogee_id].keys() and
@@ -29,46 +30,38 @@ def worker(task):
         #     more_cols['ln_likelihood'] = np.full(len(samples), np.nan)
         #     more_cols['ln_prior'] = np.full(len(samples), np.nan)
 
-    res = samples.to_table()
     # for k in more_cols:
     #     res[k] = more_cols[k]
 
-    res.write(join(output_path, apogee_id[:4], f'{apogee_id}.fits.gz'),
-              overwrite=True)
+    samples.write(join(output_path, apogee_id[:4], f'{apogee_id}.fits'),
+                  overwrite=True)
 
 
 def main(run_name, pool, overwrite=False):
     c = Config.from_run_name(run_name)
     logger.debug(f'Loaded config for run {run_name}')
 
-    allstar, allvisit = c.load_alldata()
-    logger.debug(f'Loaded APOGEE data')
+    meta = at.Table.read(c.metadata_path)
 
     samples_path = join(c.run_path, 'samples')
     logger.debug(f'Writing samples to {samples_path}')
 
-    unq_stubs = np.unique([x[:4] for x in allstar['APOGEE_ID']])
+    unq_stubs = np.unique([x[:4] for x in meta['APOGEE_ID']])
     for stub in unq_stubs:
         os.makedirs(join(samples_path, stub), exist_ok=True)
 
     tasks = []
 
-    joker_f = h5py.File(c.joker_results_path, 'r')
-    mcmc_f = h5py.File(c.mcmc_results_path, 'r')
+    logger.debug('Preparing APOGEE IDs using metadata file')
 
-    logger.debug('Reading {} APOGEE IDs from Joker samplings'
-                 .format(len(joker_f.keys())))
-
-    for apogee_id in joker_f.keys():
-        if apogee_id in mcmc_f.keys():
+    for row in meta:
+        apogee_id = str(row['APOGEE_ID'])
+        if row['mcmc_success']:
             tasks.append((apogee_id, c.mcmc_results_path,
                           samples_path, c))
         else:
             tasks.append((apogee_id, c.joker_results_path,
                           samples_path, c))
-
-    joker_f.close()
-    mcmc_f.close()
 
     for r in tqdm(pool.map(worker, tasks), total=len(tasks)):
         pass
