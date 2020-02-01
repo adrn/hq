@@ -39,7 +39,10 @@ def worker(task):
 
 def main(run_name, pool, overwrite=False):
     c = Config.from_run_name(run_name)
+    logger.debug(f'Loaded config for run {run_name}')
+
     allstar, allvisit = c.load_alldata()
+    logger.debug(f'Loaded APOGEE data')
 
     samples_path = join(c.run_path, 'samples')
     logger.debug(f'Writing samples to {samples_path}')
