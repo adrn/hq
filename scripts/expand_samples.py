@@ -67,7 +67,7 @@ def main(run_name, pool, overwrite=False):
     joker_f.close()
     mcmc_f.close()
 
-    for r in tqdm(pool.starmap(worker, tasks), total=len(tasks)):
+    for r in tqdm(pool.map(worker, tasks), total=len(tasks)):
         pass
 
 
