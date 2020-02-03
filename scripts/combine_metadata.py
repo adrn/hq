@@ -3,6 +3,7 @@ import os
 import sys
 
 # Third-party
+import numpy as np
 import theano
 theano.config.optimizer = 'None'
 theano.config.mode = 'FAST_COMPILE'
@@ -81,7 +82,13 @@ def main(run_name, overwrite=False):
         master[colname][master['mcmc_success']] = master[mcmc_colname][master['mcmc_success']]
 
     master = master[final_colnames]
-    QTable(master).write(c.metadata_path, overwrite=True)
+    master = QTable(master)
+
+    for col in master.colnames:
+        if col.endswith('_err'):
+            master[col][~master['mcmc_completed']] = np.nan
+
+    master.write(c.metadata_path, overwrite=True)
 
 
 if __name__ == '__main__':

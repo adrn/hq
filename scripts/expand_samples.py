@@ -17,7 +17,7 @@ from hq.config import Config
 
 def worker(task):
     apogee_id, results_path, output_path, config = task
-    
+
     with tb.open_file(results_path, 'r') as f:
         samples = tj.JokerSamples.read(f.root[apogee_id])
 
@@ -56,6 +56,10 @@ def main(run_name, pool, overwrite=False):
 
     for row in meta:
         apogee_id = str(row['APOGEE_ID'])
+        if os.path.exists(join(samples_path, apogee_id[:4],
+                               f'{apogee_id}.fits')):
+            continue
+
         if row['mcmc_success']:
             tasks.append((apogee_id, c.mcmc_results_path,
                           samples_path, c))
