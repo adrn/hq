@@ -78,11 +78,6 @@ class Config:
         self.allvisit_filename = os.path.abspath(
             os.path.expanduser(self.allvisit_filename))
 
-        for name in ['allstar_filename', 'allvisit_filename']:
-            val = getattr(self, name)
-            if not os.path.exists(val):
-                raise FileNotFoundError(f"File not found at {val}")
-
         # Normalize paths:
         if os.path.abspath(self.prior_file) != self.prior_file:
             self.prior_file = os.path.join(self.run_path, self.prior_file)
