@@ -3,6 +3,7 @@ from astropy.time import Time
 import astropy.units as u
 import numpy as np
 
+
 __all__ = ['unimodal_P', 'max_likelihood_sample', 'MAP_sample',
            'max_phase_gap', 'phase_coverage', 'periods_spanned',
            'phase_coverage_per_period']
@@ -12,7 +13,7 @@ def ln_normal(x, mu, var):
     return -0.5 * (np.log(2*np.pi * var) + (x - mu)**2 / var)
 
 
-def unimodal_P(samples, data):
+def unimodal_P(samples, data, delta_fac=4):
     """Check whether the samples returned are within one period mode.
 
     Parameters
@@ -27,7 +28,7 @@ def unimodal_P(samples, data):
     P_samples = samples['P'].to(u.day).value
     P_min = np.min(P_samples)
     T = np.ptp(data.t.mjd)
-    delta = 4*P_min**2 / (2*np.pi*T)
+    delta = delta_fac * P_min**2 / (2*np.pi*T)
 
     return np.ptp(P_samples) < delta
 
