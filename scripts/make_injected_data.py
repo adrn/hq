@@ -23,10 +23,11 @@ from hq.samples_analysis import extract_MAP_sample
 
 def worker(task):
     # allstar table must also have columns from metadata
-    allstar, allvisit, worker_id, c, global_rnd = task
+    allstar, allvisit, worker_id, c, prior = task
 
-    rnd = global_rnd.seed(worker_id)
-    prior = c.get_prior()
+    rnd = np.random.Generator(np.random.PCG64(worker_id))
+
+    # prior = c.get_prior()
     logger.debug(f"Worker {worker_id} on node {socket.gethostname()}: "
                  f"{len(allstar)} stars left to process")
 
@@ -68,7 +69,7 @@ def worker(task):
     return at.Table(allvisit)
 
 
-def main(run_name, pool, overwrite=False, seed=None, limit=None):
+def main(run_name, pool, overwrite=False, limit=None):
     c = Config.from_run_name(run_name)
 
     if not os.path.exists(c.prior_cache_file):
@@ -93,9 +94,6 @@ def main(run_name, pool, overwrite=False, seed=None, limit=None):
     # Combine allstar and metadata/results data:
     allstar = at.join(metadata, allstar, keys='APOGEE_ID')
 
-    # Make global random number state:
-    rnd = np.random.RandomState(seed=seed)
-
     logger.debug("Preparing tasks...")
     if len(allstar) > 10 * pool.size:
         n_tasks = min(16 * pool.size, len(allstar))
@@ -106,7 +104,7 @@ def main(run_name, pool, overwrite=False, seed=None, limit=None):
     for (i1, i2), _ in batch_tasks(len(allstar), n_tasks):
         stars = allstar[i1:i2]
         visits = allvisit[np.isin(allvisit['APOGEE_ID'], stars['APOGEE_ID'])]
-        tasks.append([stars, visits, i1, c, rnd])
+        tasks.append([stars, visits, i1, c, prior])
 
     logger.info(f'Done preparing tasks: split into {len(tasks)} task chunks')
     new_allvisit_chunks = []
@@ -126,19 +124,10 @@ if __name__ == '__main__':
     parser = get_parser(description='Make simulated radial velocity data',
                         loggers=[logger])
 
-    parser.add_argument("-s", "--seed", dest="seed", default=None, type=int,
-                        help="Random number seed")
-
     args = parser.parse_args()
-
-    seed = args.seed
-    if seed is None:
-        seed = np.random.randint(2**32 - 1)
-        logger.log(1, f"No random number seed specified, so using seed: {seed}")
 
     with threadpool_limits(limits=1, user_api='blas'):
         with args.Pool(**args.Pool_kwargs) as pool:
-            main(run_name=args.run_name, pool=pool, overwrite=args.overwrite,
-                 seed=args.seed)
+            main(run_name=args.run_name, pool=pool, overwrite=args.overwrite)
 
     sys.exit(0)

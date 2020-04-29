@@ -26,12 +26,13 @@ from hq.config import Config
 
 
 def worker(task):
-    apogee_ids, worker_id, c, prior, tmpdir, global_rnd = task
+    apogee_ids, worker_id, c, prior, tmpdir = task
 
     # This worker's results:
     results_filename = os.path.join(tmpdir, f'worker-{worker_id}.hdf5')
 
-    rnd = global_rnd.seed(worker_id)
+    rnd = np.random.Generator(np.random.PCG64(worker_id))
+
     logger.log(1, f"Worker {worker_id}: Creating TheJoker instance with {rnd}")
     prior = c.get_prior()
     joker = tj.TheJoker(prior, random_state=rnd)
@@ -124,7 +125,9 @@ def tmpdir_combine(tmpdir, results_filename):
     shutil.rmtree(tmpdir)
 
 
-def main(run_name, pool, overwrite=False, seed=None, limit=None):
+def main(run_name, pool, overwrite=False, limit=None):
+    logger.debug(f"Processing pool has size = {pool.size}")
+
     c = Config.from_run_name(run_name)
 
     if not os.path.exists(c.prior_cache_file):
@@ -154,10 +157,6 @@ def main(run_name, pool, overwrite=False, seed=None, limit=None):
     allstar, _ = c.load_alldata()
     allstar = allstar[~np.isin(allstar['APOGEE_ID'], done_apogee_ids)]
 
-    # Create TheJoker sampler instance with the specified random seed and pool
-    rnd = np.random.RandomState(seed=seed)
-    logger.debug(f"Processing pool has size = {pool.size}")
-
     apogee_ids = np.unique(allstar['APOGEE_ID'])
     if limit is not None:
         apogee_ids = apogee_ids[:limit]
@@ -179,7 +178,7 @@ def main(run_name, pool, overwrite=False, seed=None, limit=None):
     else:
         n_tasks = pool.size
     tasks = batch_tasks(len(apogee_ids), n_tasks, arr=apogee_ids,
-                        args=(c, prior, tmpdir, rnd))
+                        args=(c, prior, tmpdir))
 
     logger.info(f'Done preparing tasks: split into {len(tasks)} task chunks')
     for r in pool.map(worker, tasks, callback=callback):
@@ -194,22 +193,14 @@ if __name__ == '__main__':
     parser = get_parser(description='Run The Joker on APOGEE data',
                         loggers=[logger, joker_logger])
 
-    parser.add_argument("-s", "--seed", dest="seed", default=None, type=int,
-                        help="Random number seed")
-
     parser.add_argument("--limit", dest="limit", default=None,
                         type=int, help="Maximum number of stars to process")
 
     args = parser.parse_args()
 
-    seed = args.seed
-    if seed is None:
-        seed = np.random.randint(2**32 - 1)
-        logger.log(1, f"No random number seed specified, so using seed: {seed}")
-
     with threadpool_limits(limits=1, user_api='blas'):
         with args.Pool(**args.Pool_kwargs) as pool:
             main(run_name=args.run_name, pool=pool, overwrite=args.overwrite,
-                 seed=args.seed, limit=args.limit)
+                 limit=args.limit)
 
     sys.exit(0)
