@@ -100,6 +100,8 @@ def main(run_name, pool, overwrite=False, limit=None):
     else:
         n_tasks = pool.size
 
+    prior = c.get_prior()
+
     tasks = []
     for (i1, i2), _ in batch_tasks(len(allstar), n_tasks):
         stars = allstar[i1:i2]
