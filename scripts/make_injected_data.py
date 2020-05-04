@@ -85,7 +85,7 @@ def main(run_name, pool, overwrite=False, limit=None):
 
     # Only keep some columns of allvisit file:
     allvisit = at.Table(allvisit)['VISIT_ID', 'APOGEE_ID',
-                                  'JD', 'VHELIO', 'VRELERR']
+                                  'JD', 'VHELIO', 'VRELERR', 'STARFLAG']
 
     # Get metadata file from previous full run of HQ:
     logger.debug("Loading metadata...")
