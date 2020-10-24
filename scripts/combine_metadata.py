@@ -68,7 +68,8 @@ def main(run_name, overwrite=False):
 
     master['mcmc_completed'] = master['mcmc_completed'].filled(False)
     master['mcmc_success'] = master['mcmc_success'].filled(False)
-    master['joker_completed'] = master['joker_completed'].filled(False)
+    if hasattr(master['joker_completed'], 'filled'):
+        master['joker_completed'] = master['joker_completed'].filled(False)
 
     for colname in mcmc_meta.colnames:
         if colname == 'APOGEE_ID':

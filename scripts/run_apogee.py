@@ -8,6 +8,9 @@ import sys
 import time
 
 # Third-party
+from astropy.utils import iers
+iers.conf.auto_download = False  
+
 import theano
 theano.config.optimizer = 'None'
 theano.config.mode = 'FAST_COMPILE'
