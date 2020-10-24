@@ -2,14 +2,14 @@
 #SBATCH -J apogee-control
 #SBATCH -o logs/null-control.o%j
 #SBATCH -e logs/null-control.e%j
-#SBATCH -n 720
-#SBATCH -t 72:00:00
+#SBATCH -n 400
+#SBATCH -t 36:00:00
 #SBATCH -p cca
 #SBATCH --constraint=skylake
 
 source ~/.bash_profile
 init_conda
-conda activate hq2
+conda activate hq3
 echo $HQ_RUN
 
 cd /mnt/ceph/users/apricewhelan/projects/hq/scripts

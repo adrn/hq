@@ -9,7 +9,7 @@
 
 source ~/.bash_profile
 init_conda
-conda activate hq2
+conda activate hq3
 echo $HQ_RUN
 
 cd /mnt/ceph/users/apricewhelan/projects/hq/scripts

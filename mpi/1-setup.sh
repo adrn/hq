@@ -16,7 +16,7 @@ cd /mnt/ceph/users/apricewhelan/projects/hq/scripts
 
 date
 
-stdbuf -o0 -e0 mpirun -n $SLURM_NTASKS python3 -m mpi4py.futures make_prior_cache.py --name $HQ_RUN -v --mpiasync -o -v
+stdbuf -o0 -e0 mpirun -n $SLURM_NTASKS python3 -m mpi4py.futures make_prior_cache.py --name $HQ_RUN -v --mpiasync -v
 
 stdbuf -o0 -e0 python3 make_tasks.py --name $HQ_RUN -v
 
