@@ -114,7 +114,6 @@ if __name__ == '__main__':
 
     # Load the analyzed joker samplings file, only keep unimodal:
     c = Config.from_run_name(args.run_name)
-    prior = c.get_prior('mcmc')
 
     joker_metadata = QTable.read(c.metadata_joker_path)
     unimodal_tbl = joker_metadata[joker_metadata['unimodal']]
@@ -124,6 +123,7 @@ if __name__ == '__main__':
 
     metadata_row = unimodal_tbl[args.num]
 
+    prior = c.get_prior('mcmc')
     main(c, prior,
          metadata_row=metadata_row,
          overwrite=args.overwrite)
