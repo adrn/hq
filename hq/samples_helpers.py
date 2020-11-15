@@ -3,7 +3,7 @@ from thejoker import JokerSamples
 __all__ = ['read_samples_block']
 
 
-def read_samples_block(c, tbl):
+def read_samples_block(c, tbl, **kwargs):
     """Create a JokerSamples instance from a section of a pytables table of samples
 
     Parameters
@@ -18,7 +18,7 @@ def read_samples_block(c, tbl):
 
     prior = c.get_prior()
 
-    samples = JokerSamples(poly_trend=prior.poly_trend)
+    samples = JokerSamples(poly_trend=prior.poly_trend, **kwargs)
     for key in prior.par_units:
         samples[key] = tbl[key] * prior.par_units[key]
 
