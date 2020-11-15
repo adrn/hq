@@ -18,11 +18,8 @@ def read_samples_block(c, tbl):
 
     prior = c.get_prior()
 
-    units = prior._nonlinear_equiv_units.copy()
-    units.update(prior._linear_equiv_units)
-
     samples = JokerSamples(poly_trend=prior.poly_trend)
-    for key in units:
-        samples[key] = tbl[key] * units[key]
+    for key in prior.par_units:
+        samples[key] = tbl[key] * prior.par_units[key]
 
     return samples
