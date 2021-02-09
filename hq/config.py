@@ -30,6 +30,10 @@ class Config:
     allvisit_filename: str = ''
     min_nvisits: int = 3
 
+    # Calibrated visit RV uncertainties
+    visit_error_filename: str = ''
+    visit_error_colname: str = 'CALIB_VERR'
+
     # The Joker
     prior_file: str = 'prior.py'
     n_prior_samples: int = 500_000_000

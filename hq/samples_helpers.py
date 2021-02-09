@@ -4,7 +4,8 @@ __all__ = ['read_samples_block']
 
 
 def read_samples_block(c, tbl, **kwargs):
-    """Create a JokerSamples instance from a section of a pytables table of samples
+    """
+    Create a JokerSamples instance from a section of a table of samples
 
     Parameters
     ----------
