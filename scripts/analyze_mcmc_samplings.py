@@ -84,7 +84,8 @@ def worker(task):
             err[k] = 1.5 * median_absolute_deviation(samples[k])
             row[f'MAP_{k}_err'] = err[k]
 
-        row['t0_bmjd'] = MAP_sample.t0.tcb.mjd
+        row['t_ref_bmjd'] = MAP_sample.t_ref.tcb.mjd
+        row['MAP_t0_bmjd'] = MAP_sample.get_t0().tcb.mjd
 
         row['MAP_ln_likelihood'] = ln_likelihood[MAP_idx]
         row['MAP_ln_prior'] = samples['ln_prior'][MAP_idx]
@@ -96,7 +97,7 @@ def worker(task):
             row['unimodal'] = True
         else:
             row['unimodal'] = False
-        
+
         stat_df = pm.summary(trace)
         row['gelman_rubin_max'] = stat_df['r_hat'].max()
         row['mcmc_success'] = row['gelman_rubin_max'] <= 1.1
@@ -107,8 +108,8 @@ def worker(task):
             row['max_phase_gap'] = max_phase_gap(MAP_sample, data)
             row['phase_coverage'] = phase_coverage(MAP_sample, data)
             row['periods_spanned'] = periods_spanned(MAP_sample, data)
-            row['phase_coverage_per_period'] = phase_coverage_per_period(MAP_sample,
-                                                                         data)
+            row['phase_coverage_per_period'] = phase_coverage_per_period(
+                MAP_sample, data)
         else:
             row['max_phase_gap'] = np.nan * u.one
             row['phase_coverage'] = np.nan * u.one

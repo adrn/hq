@@ -52,7 +52,8 @@ def worker(task):
         MAP_sample = samples[MAP_idx]
         for k in MAP_sample.par_names:
             row['MAP_'+k] = MAP_sample[k]
-        row['t0_bmjd'] = MAP_sample.t0.tcb.mjd
+        row['t_ref_bmjd'] = MAP_sample.t_ref.tcb.mjd
+        row['MAP_t0_bmjd'] = MAP_sample.get_t0().tcb.mjd
 
         row['MAP_ln_likelihood'] = samples['ln_likelihood'][MAP_idx]
         row['MAP_ln_prior'] = samples['ln_prior'][MAP_idx]
@@ -71,8 +72,8 @@ def worker(task):
         row['max_phase_gap'] = max_phase_gap(MAP_sample, data)
         row['phase_coverage'] = phase_coverage(MAP_sample, data)
         row['periods_spanned'] = periods_spanned(MAP_sample, data)
-        row['phase_coverage_per_period'] = phase_coverage_per_period(MAP_sample,
-                                                                     data)
+        row['phase_coverage_per_period'] = phase_coverage_per_period(
+            MAP_sample, data)
 
         # Use the max marginal likelihood sample
         _unit = data.rv.unit

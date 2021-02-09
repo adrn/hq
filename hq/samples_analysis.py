@@ -141,7 +141,7 @@ def phase_coverage_per_period(sample, data):
     data : `~thejoker.RVData`
     """
     P = sample['P']
-    dt = (data.t - data.t0).to(u.day)
+    dt = (data.t - data.t_ref).to(u.day)
     phase = dt / P
     H1, _ = np.histogram(phase, bins=np.arange(0, phase.max()+1, 1))
     H2, _ = np.histogram(phase, bins=np.arange(-0.5, phase.max()+1, 1))
@@ -168,12 +168,16 @@ def constant_model_evidence(data):
 
 def extract_MAP_sample(row):
     from thejoker import JokerSamples
-    sample = JokerSamples(t0=Time(row['t0_bmjd'], format='mjd', scale='tcb'))
+    sample = JokerSamples(t_ref=Time(row['t_ref_bmjd'],
+                                     format='mjd',
+                                     scale='tcb'))
 
     for colname in row.colnames:
         if not colname.startswith('MAP_'):
             continue
         if colname.endswith('_err'):
+            continue
+        if colname[4:] not in sample._valid_units:
             continue
 
         sample[colname[4:]] = u.Quantity([row[colname]])
