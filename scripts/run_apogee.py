@@ -9,7 +9,7 @@ import time
 
 # Third-party
 from astropy.utils import iers
-iers.conf.auto_download = False  
+iers.conf.auto_download = False
 
 import theano
 theano.config.optimizer = 'None'
@@ -41,12 +41,17 @@ def worker(task):
     logger.debug(f"Worker {worker_id} on node {socket.gethostname()}: "
                  f"{len(apogee_ids)} stars left to process")
 
-    # Initialize to get packed column order:
+    # Initialize to get packed column order#
     logger.log(1,
                f"Worker {worker_id}: Loading prior samples from cache "
                f"{c.prior_cache_file}")
+
+    # Also pre-load all data to avoid firing off so many file I/O operations:
+    all_data = {}
     with h5py.File(c.tasks_path, 'r') as tasks_f:
-        data = tj.RVData.from_timeseries(tasks_f[apogee_ids[0]])
+        for apogee_id in apogee_ids:
+            data = tj.RVData.from_timeseries(tasks_f[apogee_id])
+            all_data[apogee_id] = data
     joker_helper = joker._make_joker_helper(data)
     _slice = slice(0, c.max_prior_samples, 1)
     batch = read_batch(c.prior_cache_file, joker_helper.packed_order,
@@ -56,8 +61,7 @@ def worker(task):
     logger.log(1, f"Worker {worker_id}: Loaded {len(batch)} prior samples")
 
     for apogee_id in apogee_ids:
-        with h5py.File(c.tasks_path, 'r') as tasks_f:
-            data = tj.RVData.from_timeseries(tasks_f[apogee_id])
+        data = all_data[apogee_id]
         logger.debug(f"Worker {worker_id}: Running {apogee_id} "
                      f"({len(data)} visits)")
 
@@ -101,7 +105,8 @@ def callback(result):
     joker_results_file = result['joker_results_path']
 
     logger.debug(f"Worker {result['worker_id']} on {result['hostname']}: "
-                 f"Combining results from {tmp_file} into {joker_results_file}")
+                 f"Combining results from {tmp_file} into {joker_results_file}"
+                 )
 
     with h5py.File(joker_results_file, 'a') as all_f:
         with h5py.File(tmp_file, 'r') as f:
@@ -208,7 +213,8 @@ if __name__ == '__main__':
     seed = args.seed
     if seed is None:
         seed = np.random.randint(2**32 - 1)
-        logger.log(1, f"No random number seed specified, so using seed: {seed}")
+        logger.log(1,
+                   f"No random number seed specified, so using seed: {seed}")
 
     with threadpool_limits(limits=1, user_api='blas'):
         with args.Pool(**args.Pool_kwargs) as pool:
