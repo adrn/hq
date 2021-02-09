@@ -2,54 +2,27 @@
 from astropy.time import Time
 import astropy.units as u
 import numpy as np
+from thejoker import RVData
+
 from .log import logger
 
 
-def get_new_err(visits, a, b, s):
-    err = visits['VRELERR']
-    snr = visits['SNR']
-    return np.sqrt(s**2 + err**2 + a*snr**b)
+def get_rvdata(visits, err_column='VRELERR', dtype='f8', time_scale='tdb'):
 
-
-def get_new_err_nidever(visits):
-    err = visits['VRELERR']
-    var = (3.5*err**1.2)**2 + 0.072**2
-    return np.sqrt(var)
-
-
-def get_rvdata(visits, apply_error_calibration=True, float64=True,
-               assume_tcb=False):
-    from thejoker import RVData
-    if float64:
-        dtype = 'f8'
-    else:
-        dtype = 'f4'
-
-    t = Time(visits['JD'].astype(dtype), format='jd', scale='utc')
-    if assume_tcb:
-        t = t.mjd
+    t = Time(visits['JD'].astype(dtype), format='jd', scale=time_scale)
     rv = visits['VHELIO'].astype(dtype) * u.km/u.s
+    rv_err = visits[err_column]
 
-    if apply_error_calibration:
-        # see notebook: Calibrate-visit-rv-err.ipynb
-        # rv_err = get_new_err(visits,
-        #                      a=145.869, b=-2.8215, s=0.168)
-
-        # See email from Nidever, apogee2-rvvar 1421
-        rv_err = get_new_err_nidever(visits)
-
-    else:
-        rv_err = visits['VRELERR']
-
-    return RVData(t=t, rv=rv, rv_err=rv_err.astype(dtype) * u.km/u.s)
+    return RVData(t=t, rv=rv,
+                  rv_err=rv_err.astype(dtype) * u.km/u.s)
 
 
-def filter_alldata(allstar_tbl, allvisit_tbl,
-                   starflag_bits=None, aspcapflag_bits=None,
-                   min_nvisits=3):
+def filter_data(allstar_tbl, allvisit_tbl,
+                starflag_bits=None, aspcapflag_bits=None, rvflag_bits=None,
+                min_nvisits=3):
     logger.log(1,
-               f"Opened allstar ({len(allstar_tbl)} sources) and "
-               f"allvisit ({len(allvisit_tbl)} visits)")
+               f"Processing allstar ({len(allstar_tbl)} sources) and "
+               f"allvisit ({len(allvisit_tbl)} visits) tables")
 
     # Remove bad velocities / NaN / Inf values:
     bad_visit_mask = (
@@ -65,11 +38,9 @@ def filter_alldata(allstar_tbl, allvisit_tbl,
     allvisit_tbl = allvisit_tbl[bad_visit_mask]
 
     if starflag_bits is None:  # use defaults
-        # VERY_BRIGHT_NEIGHBOR, SUSPECT_RV_COMBINATION, SUSPECT_BROAD_LINES
-        star_starflag_bits = [3, 16]  # 17
-
-        # LOW_SNR, PERSIST_HIGH, PERSIST_JUMP_POS, PERSIST_JUMP_NEG
-        visit_starflag_bits = star_starflag_bits + [4, 9, 12, 13]
+        # VERY_BRIGHT_NEIGHBOR, SUSPECT_RV_COMBINATION
+        star_starflag_bits = [3, 16]
+        visit_starflag_bits = star_starflag_bits
 
     star_starflag_val = np.sum(2 ** np.array(star_starflag_bits))
     visit_starflag_val = np.sum(2 ** np.array(visit_starflag_bits))
@@ -85,8 +56,19 @@ def filter_alldata(allstar_tbl, allvisit_tbl,
                f"filtered {len(allvisit_tbl) - visit_starflag_mask.sum()} "
                "visits")
 
+    # apply new (DR17) RV_FLAG masking:
+    if rvflag_bits is None:
+        rvflag_mask = allvisit_tbl['RV_FLAG'] == 0
+    else:
+        visit_rvflag_val = np.sum(2 ** np.array(rvflag_bits))
+        rvflag_mask = (allstar_tbl['RVFLAG'] & visit_rvflag_val) == 0
+
+    logger.log(1,
+               f"Applying allvisit RVFLAG mask, filtered "
+               f"{len(allvisit_tbl) - rvflag_mask.sum()} visits")
+
     # After quality and bitmask cut, figure out what APOGEE_IDs remain
-    allvisit_tbl = allvisit_tbl[visit_starflag_mask]
+    allvisit_tbl = allvisit_tbl[visit_starflag_mask & rvflag_mask]
     v_apogee_ids, counts = np.unique(allvisit_tbl['APOGEE_ID'],
                                      return_counts=True)
     allstar_visit_mask = np.isin(allstar_tbl['APOGEE_ID'],
