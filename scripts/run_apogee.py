@@ -140,8 +140,8 @@ def main(run_name, pool, overwrite=False, seed=None, limit=None):
                       "Did you run make_prior_cache.py?")
 
     if not os.path.exists(c.tasks_path):
-        raise IOError("Tasks file '{0}' does not exist! Did you run "
-                      "make_tasks.py?")
+        raise IOError(f"Tasks file '{c.tasks_path}' does not exist! Did you "
+                      "run make_tasks.py?")
 
     # Make directory for temp. files, one per worker:
     tmpdir = os.path.join(c.run_path, 'thejoker')

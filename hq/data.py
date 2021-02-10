@@ -8,13 +8,10 @@ from .log import logger
 
 
 def get_rvdata(visits, err_column='VRELERR', dtype='f8', time_scale='tdb'):
-
     t = Time(visits['JD'].astype(dtype), format='jd', scale=time_scale)
     rv = visits['VHELIO'].astype(dtype) * u.km/u.s
-    rv_err = visits[err_column]
-
-    return RVData(t=t, rv=rv,
-                  rv_err=rv_err.astype(dtype) * u.km/u.s)
+    rv_err = visits[err_column].astype(dtype) * u.km/u.s
+    return RVData(t=t, rv=rv, rv_err=rv_err)
 
 
 def filter_data(allstar_tbl, allvisit_tbl,

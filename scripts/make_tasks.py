@@ -3,7 +3,6 @@ from os import path
 import sys
 
 # Third-party
-from astropy.table import Table
 import h5py
 import numpy as np
 from thejoker.logging import logger as joker_logger
@@ -21,28 +20,29 @@ def main(run_name, pool, overwrite=False):
     c = Config.from_run_name(run_name)
 
     if path.exists(c.tasks_path) and not overwrite:
-        logger.info(f"File {c.tasks_path} already exists: Use -o/--overwrite if"
-                    " needed")
+        logger.info(f"File {c.tasks_path} already exists: Use -o/--overwrite "
+                    "if needed")
         return
 
-    # Load the full allvisit file, but only some columns:
-    allstar, _allvisit = c.load_alldata()
-    allvisit = Table()
-    for k in ['APOGEE_ID', 'JD', 'VHELIO', 'VRELERR', 'SNR']:
-        allvisit[k] = _allvisit[k]
+    # Load the full allvisit file, but store only some columns for speed:
+    allvisit = c.allvisit
+    keys = ['APOGEE_ID', 'JD', 'VHELIO',  # 'VISITID'
+            'PLATE', 'MJD', 'FIBERID']  # TODO: HACK FOR DR17 Alpha
+    c._cache['allvisit'] = allvisit[keys]
 
     logger.debug("Loading data and preparing tasks...")
-    apogee_ids = np.unique(allstar['APOGEE_ID'])
+    apogee_ids = np.unique(c.allstar['APOGEE_ID'])
     with h5py.File(c.tasks_path, 'w') as f:
         for apogee_id in tqdm(apogee_ids):
+            data = c.get_star_data(apogee_id)
             visits = allvisit[allvisit['APOGEE_ID'] == apogee_id]
             data = get_rvdata(visits)
 
             g = f.create_group(apogee_id)
             data.to_timeseries().write(g, format='hdf5', serialize_meta=True)
 
-    logger.info('Done preparing tasks: {0} stars in process queue'
-                .format(len(apogee_ids)))
+    logger.info(f'Done preparing tasks: {len(apogee_ids)} stars in the '
+                'processing queue')
 
 
 if __name__ == '__main__':

@@ -5,11 +5,12 @@ import importlib.util as iu
 
 # Third-party
 from astropy.io import fits
+import astropy.table as at
 import yaml
 
 # Project
 from .log import logger
-from .data import filter_alldata
+from .data import filter_alldata, get_rvdata
 
 __all__ = ['HQ_CACHE_PATH', 'Config']
 
@@ -57,6 +58,12 @@ class Config:
 
         self._run_path, run_name = os.path.split(filename)
         self._load_validate(vals)
+
+        self._cache = {}
+        if (self.visit_error_filename is not None
+                and len(self.visit_error_filename) > 0):
+            self._cache['visit_err_tbl'] = fits.getdata(
+                self.visit_error_filename)
 
     def _load_validate(self, vals):
         # Validate types:
@@ -132,12 +139,50 @@ class Config:
     # ------------------------------------------------------------------------
     # Data loading:
 
+    def dump_cache(self):
+        """Purge any cached data tables"""
+        self._cache = {}
+
+    @property
+    def allstar(self):
+        if 'allstar' not in self._cache:
+            (self._cache['allstar'],
+             self._cache['allvisit']) = self.load_alldata()
+        return self._cache['allstar']
+
+    @property
+    def allvisit(self):
+        if 'allvisit' not in self._cache:
+            (self._cache['allstar'],
+             self._cache['allvisit']) = self.load_alldata()
+        return self._cache['allvisit']
+
     def load_alldata(self):
         allstar = fits.getdata(self.allstar_filename)
         allvisit = fits.getdata(self.allvisit_filename)
         allstar, allvisit = filter_alldata(allstar, allvisit,
                                            min_nvisits=self.min_nvisits)
+
+        if self._visit_err_tbl is not None:
+            allvisit = at.join(
+                at.Table(allvisit),
+                at.Table(self._visit_err_tbl),
+                # keys='VISITID', # TODO - HACK FOR DR17 alpha!
+                keys=('PLATE', 'MJD', 'FIBERID'))
+
+            # TODO - HACK FOR DR17 alpha!
+            # allvisit = at.unique(allvisit, keys='VISITID')
+            allvisit = at.unique(allvisit, keys=('PLATE', 'MJD', 'FIBERID'))
+
         return allstar, allvisit
+
+    def get_star_data(self, apogee_id):
+        visits = self.allvisit[self.allvisit['APOGEE_ID'] == apogee_id]
+        if self._visit_err_tbl is not None:
+            err_column = self.visit_error_colname
+        else:
+            err_column = 'VRELERR'
+        return get_rvdata(visits, err_column=err_column)
 
     def get_prior(self, which=None):
         spec = iu.spec_from_file_location("prior", self.prior_file)
@@ -147,3 +192,9 @@ class Config:
             return user_prior.prior_mcmc
         else:
             return user_prior.prior
+
+    # Special methods
+    def __getstate__(self):
+        """Ensure that the cache does not get pickled with the object"""
+        state = {k: v for k, v in self.__dict__.items() if 'cache' not in k}
+        return state.copy()
