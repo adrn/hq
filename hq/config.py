@@ -116,7 +116,7 @@ class Config:
 
     @property
     def tasks_path(self):
-        return self.cache_path / 'tmp-tasks.hdf5'
+        return self.cache_path / 'tasks.hdf5'
 
     @property
     def metadata_path(self):
@@ -137,12 +137,12 @@ class Config:
     def data(self, **kwargs):
         if 'data' not in self._cache:
             self._cache['data'] = at.Table.read(
-                self.input_data_filename,
+                self.input_data_file,
                 format=self.input_data_format)
 
         return self._cache['data']
 
-    def get_star_data(self, source_id):
+    def get_source_data(self, source_id):
         visits = self.data[self.data[self.source_id_colname] == source_id]
         t = Time(visits[self.time_colname].astype('f8'),
                  format=self.time_format,
