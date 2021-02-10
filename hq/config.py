@@ -35,8 +35,8 @@ class Config:
 
     # The Joker
     prior_file: (str, pathlib.Path) = 'prior.py'
-    n_prior_samples: int = 500_000_000
-    max_prior_samples: int = 500_000_000
+    n_prior_samples: int = None
+    max_prior_samples: int = None
     prior_cache_file: (str, pathlib.Path) = None
     requested_samples_per_star: int = 1024
     randomize_prior_order: bool = False
@@ -68,7 +68,9 @@ class Config:
                              "using the config file path as the cache path: "
                              f"{str(default)}")
 
-            val = vals.get(field.name, default)
+            val = vals.get(field.name, None)
+            if val is None:
+                val = default
 
             if val is not None and (field.name.endswith('_file')
                                     or field.name.endswith('_path')):
@@ -81,18 +83,25 @@ class Config:
             kw['prior_cache_file'] = (f"prior_samples_{kw['n_prior_samples']}"
                                       f"_{kw['name']}.hdf5")
 
+        if kw['max_prior_samples'] is None:
+            kw['max_prior_samples'] = kw['n_prior_samples']
+
         # Normalize paths:
         for k, v in kw.items():
             if isinstance(v, pathlib.Path):
                 kw[k] = v.expanduser().absolute()
 
         # Validate:
+        allowed_None_names = ['input_data_format']
         for field in fields(self):
             val = kw[field.name]
-            if not isinstance(val, field.type):
+            if (not isinstance(val, field.type)
+                    and field.name not in allowed_None_names):
                 msg = (f"Config field '{field.name}' has type {type(val)}, "
                        f"but should be one of: {field.type}")
                 raise ValueError(msg)
+
+            setattr(self, field.name, val)
 
     # ----------
     # File paths
