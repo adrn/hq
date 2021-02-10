@@ -12,6 +12,9 @@ from pytest_astropy_header.display import (
     TESTED_VERSIONS,
     pytest_report_header as astropy_header)
 
+# pytest fixtures:
+from .tests.fixtures import make_config
+
 
 def pytest_configure(config):
 
