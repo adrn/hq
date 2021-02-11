@@ -1,10 +1,10 @@
 # Pipeline order:
 
-* Create the run: `python make_run.py --name <your run name>`
+* Create the run: `hq init --path <path for run>`
 * Edit the config file to set desired parameters
-* Set the environment variable $HQ_RUN to `<your run name>` (or add
-  `--name <your run name>` to all python calls below) to specify the HQ run name
-* Create the prior cache: `python make_prior_cache.py`
+* Set the environment variable $HQ_RUN_PATH to `<path for run>` (or add
+  `--path <path for run>` to all python calls below) to specify the HQ run
+* Create the prior cache: `hq make_prior_cache`
 * Set up the tasks used to parallelize and deploy: `python make_tasks.py`
 * Run The Joker sampler on all stars: `python run_apogee.py`
 * Analyze The Joker samplings to determine which stars are complete, which stars
@@ -20,9 +20,7 @@
 
 ## Testing:
 
-* `export HQ_CACHE_PATH='/Users/apricewhelan/.hq'`
-* `cd <hq repo>/scripts`
-* `python make_run.py --name hqtest`
+* `python init_run.py --name hqtest`
 * `cp ../hq/pkgdata/_test_config.yml $HQ_CACHE_PATH/hqtest/config.yml`
 * `cp ../hq/pkgdata/_test_prior.py $HQ_CACHE_PATH/hqtest/prior.py`
 * `python make_prior_cache.py --name hqtest`
