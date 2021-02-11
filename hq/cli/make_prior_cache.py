@@ -28,9 +28,11 @@ def _prior_cache_worker(task):
         random_state = np.random.RandomState()
         random_state.set_state(global_random_state.get_state())
         random_state.seed(task_id)  # TODO: is this safe?
+    else:
+        random_state = None
 
     samples = prior.sample(size=n_samples, return_logprobs=True,
-                           dtype=np.float32)
+                           dtype=np.float32, random_state=random_state)
 
     logger.debug(f"Worker {task_id} finished")
 
