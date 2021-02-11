@@ -89,6 +89,8 @@ class CLI:
                 "This command is the main workhorse for HQ: it runs The Joker "
                 "on all of the input data and caches the samplings."),
             loggers=[logger, joker_logger])
+        # HACK
+        parser.usage = 'hq run_thejoker' + parser.format_usage()[9:]
 
         parser.add_argument("-s", "--seed", dest="seed", default=None,
                             type=int, help="Random number seed")
@@ -118,7 +120,11 @@ class CLI:
 
         parser = get_parser(
             description=(
-                "TODO"))
+                "Fit a constant RV and a robust constant RV model to the data "
+                "and record the log likelihoods. This can be used to compare "
+                "to the likelihoods computed for the Keplerian orbit models."))
+        # HACK
+        parser.usage = 'hq run_constant' + parser.format_usage()[9:]
 
         args = parser.parse_args(sys.argv[2:])
 
