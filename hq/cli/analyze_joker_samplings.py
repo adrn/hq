@@ -3,7 +3,7 @@ import os
 
 # Third-party
 import astropy.units as u
-from astropy.table import QTable, vstack, join
+import astropy.table as at
 import h5py
 import numpy as np
 from tqdm import tqdm
@@ -96,7 +96,7 @@ def worker(task):
 
         rows.append(row)
 
-    tbl = QTable(rows)
+    tbl = at.QTable(rows)
     for k in units:
         tbl[k] = tbl[k] * units[k]
 
@@ -124,10 +124,12 @@ def analyze_joker_samplings(run_path, pool):
         if tbl is not None:
             sub_tbls.append(tbl)
 
-    tbl = vstack(sub_tbls)
+    tbl = at.vstack(sub_tbls)
+    logger.info(f"Unimodal sources: {tbl['unimodal]'].sum()}")
 
     # load results from running run_fit_constant.py:
-    constant_tbl = QTable.read(c.cache_path / 'constant.fits')
-    tbl = join(tbl, constant_tbl, keys=c.source_id_colname)
+    constant_tbl = at.QTable.read(c.cache_path / 'constant.fits')
+    tbl = at.join(tbl, constant_tbl, keys=c.source_id_colname)
+    tbl = at.unique(tbl, keys=c.source_id_colname)
 
     tbl.write(c.metadata_joker_path, overwrite=True)
