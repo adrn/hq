@@ -1,5 +1,8 @@
 # Standard library
 import argparse
+import os
+import pathlib
+import shutil
 import sys
 
 # Third-party
@@ -95,8 +98,7 @@ class CLI:
         parser.add_argument("-s", "--seed", dest="seed", default=None,
                             type=int, help="Random number seed")
         parser.add_argument("--limit", dest="limit", default=None,
-                            type=int, help="Maximum number of stars to process"
-                            )
+                            type=int, help="Maximum number of stars to process")
 
         args = parser.parse_args(sys.argv[2:])
 
@@ -150,6 +152,49 @@ class CLI:
         with threadpool_limits(limits=1, user_api='blas'):
             with args.Pool(**args.Pool_kwargs) as pool:
                 analyze_joker_samplings(args.run_path, pool=pool)
+
+        sys.exit(0)
+
+    def run_mcmc(self):
+        """Run MCMC (using pymc3's NUTS sampler) for the unimodal samplings"""
+        parser = get_parser(
+            description=(
+                "Run MCMC on all of the sources that have unimodal (in period) "
+                "samplings from The Joker. For annoying reasons, this must be "
+                "run on each source separately by passing in the index of the "
+                "source, for the subtable of unimodal sources. This script "
+                "uses pymc3 and theano to run MCMC: As such, it needs to "
+                "compile a theano model. By default, "))
+
+        parser.add_argument("--index", type=int, required=True,
+                            help="The index of the unimodal star to run on.")
+
+        # HACK
+        parser.usage = 'hq run_mcmc' + parser.format_usage()[9:]
+
+        args = parser.parse_args(sys.argv[2:])
+
+        theano_root = pathlib.Path(os.environ.get('HQ_THEANO_PATH',
+                                                  '~/.theano/'))
+        theano_root = theano_root.expanduser().absolute()
+
+        # This horrifying set of hacks creates unique theano cache paths for
+        # each source that this is run on. This was found to be necessary for
+        # multiprocessing, because there can be model compilation conflicts when
+        # different processes try to update the theano cache at the same time.
+        # These all need to happen before theano gets imported...
+        theano_path = str(theano_root / f"mcmc{args.index}")
+
+        if os.path.exists(theano_path):
+            shutil.rmtree(theano_path)
+        os.makedirs(theano_path)
+        os.environ["THEANO_FLAGS"] = f"base_compiledir={theano_path}"
+        logger.info(f"Theano flags set to: {os.environ['THEANO_FLAGS']}")
+
+        from .run_mcmc import run_mcmc  # noqa
+        run_mcmc(args.run_path, index=args.index, overwrite=args.overwrite)
+
+        sys.exit(0)
 
 
 # Auto-generate the usage block:
