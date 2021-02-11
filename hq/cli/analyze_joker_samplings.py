@@ -18,7 +18,6 @@ from thejoker.samples_analysis import (is_P_unimodal, max_phase_gap,
 from hq.log import logger
 from hq.config import Config
 from hq.samples_analysis import constant_model_evidence
-from run_fit_constant import ln_normal
 
 
 def worker(task):
@@ -77,14 +76,8 @@ def worker(task):
             MAP_sample, data)
 
         # Use the max marginal likelihood sample
-        _unit = data.rv.unit
-        max_ll_sample = samples[samples['ln_likelihood'].argmax()]
-        orbit = max_ll_sample.get_orbit()
-        var = data.rv_err**2 + max_ll_sample['s']**2
-        ll = ln_normal(orbit.radial_velocity(data.t).to_value(_unit),
-                       data.rv.to_value(_unit),
-                       var.to_value(_unit**2)).sum()
-        row['max_unmarginalized_ln_likelihood'] = ll
+        lls = samples.ln_unmarginalized_likelihood(data)
+        row['max_unmarginalized_ln_likelihood'] = lls.max()
 
         # Compute the evidence p(D) for the Kepler model, and constant RV model
         row['constant_ln_evidence'] = constant_model_evidence(data)
@@ -121,8 +114,7 @@ def analyze_joker_samplings(run_path, pool):
 
     # Get data files out of config file:
     logger.debug("Loading data...")
-    allstar, _ = c.load_alldata()
-    source_ids = np.unique(allstar[c.source_id_colname])
+    source_ids = np.unique(c.data[c.source_id_colname])
     tasks = batch_tasks(len(source_ids), pool.size, arr=source_ids, args=(c, ))
 
     logger.info(f'Done preparing tasks: {len(tasks)} stars in process queue')
@@ -135,8 +127,7 @@ def analyze_joker_samplings(run_path, pool):
     tbl = vstack(sub_tbls)
 
     # load results from running run_fit_constant.py:
-    constant_path = os.path.join(c.run_path, 'constant.fits')
-    constant_tbl = QTable.read(constant_path)
+    constant_tbl = QTable.read(c.cache_path / 'constant.fits')
     tbl = join(tbl, constant_tbl, keys=c.source_id_colname)
 
     tbl.write(c.metadata_joker_path, overwrite=True)
