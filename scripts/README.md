@@ -7,9 +7,10 @@
 * Create the prior cache: `hq make_prior_cache`
 * Set up the tasks used to parallelize and deploy: `hq make_tasks`
 * Run The Joker sampler on all stars: `hq run_thejoker`
+* (optional) Fit the robust constant RV model to all sources: `hq run_constant`
 * Analyze The Joker samplings to determine which stars are complete, which stars
   need to be followed up with standard MCMC:
-  `python analyze_joker_samplings.py`
+  `hq analyze_joker`
 * Run standard MCMC on the unimodal samplings to generate 256 samples:
 
     module load disBatch

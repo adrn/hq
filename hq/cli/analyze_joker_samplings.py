@@ -1,6 +1,5 @@
 # Standard library
 import os
-import sys
 
 # Third-party
 import astropy.units as u
@@ -11,41 +10,43 @@ from tqdm import tqdm
 from scipy.special import logsumexp
 import thejoker as tj
 from thejoker.multiproc_helpers import batch_tasks
+from thejoker.samples_analysis import (is_P_unimodal, max_phase_gap,
+                                       phase_coverage, periods_spanned,
+                                       phase_coverage_per_period)
 
 # Project
 from hq.log import logger
 from hq.config import Config
-from hq.samples_analysis import (unimodal_P, max_phase_gap, phase_coverage,
-                                 periods_spanned, phase_coverage_per_period,
-                                 constant_model_evidence)
+from hq.samples_analysis import constant_model_evidence
 from run_fit_constant import ln_normal
 
 
 def worker(task):
-    apogee_ids, worker_id, c = task
+    source_ids, worker_id, c = task
 
-    logger.debug(f"Worker {worker_id}: {len(apogee_ids)} stars left to process")
+    logger.debug(
+        f"Worker {worker_id}: {len(source_ids)} stars left to process")
 
     rows = []
     units = None
-    for apogee_id in apogee_ids:
+    for source_id in source_ids:
         with h5py.File(c.tasks_path, 'r') as tasks_f:
-            data = tj.RVData.from_timeseries(tasks_f[apogee_id])
+            data = tj.RVData.from_timeseries(tasks_f[source_id])
 
         with h5py.File(c.joker_results_path, 'r') as results_f:
-            if apogee_id not in results_f:
-                logger.warning("No samples for: {}".format(apogee_id))
+            if source_id not in results_f:
+                logger.warning(f"No samples for: {source_id}")
                 return None, None
 
             # Load samples from The Joker and probabilities
-            samples = tj.JokerSamples.read(results_f[apogee_id])
+            samples = tj.JokerSamples.read(results_f[source_id])
 
         if len(samples) < 1:
-            logger.warning("No samples for: {}".format(apogee_id))
+            logger.warning(f"No samples for: {source_id}")
             return None, None
 
         row = dict()
-        row['APOGEE_ID'] = apogee_id
+        row[c.source_id_colname] = source_id
         row['n_visits'] = len(data)
 
         MAP_idx = (samples['ln_prior'] + samples['ln_likelihood']).argmax()
@@ -63,7 +64,7 @@ def worker(task):
         else:
             row['joker_completed'] = False
 
-        if unimodal_P(samples, data):
+        if is_P_unimodal(samples, data):
             row['unimodal'] = True
         else:
             row['unimodal'] = False
@@ -85,7 +86,7 @@ def worker(task):
                        var.to_value(_unit**2)).sum()
         row['max_unmarginalized_ln_likelihood'] = ll
 
-        # Compute the evidence p(D) for the Kepler model and for the constant RV
+        # Compute the evidence p(D) for the Kepler model, and constant RV model
         row['constant_ln_evidence'] = constant_model_evidence(data)
         row['kepler_ln_evidence'] = (logsumexp(samples['ln_likelihood']
                                                + samples['ln_prior'])
@@ -109,8 +110,8 @@ def worker(task):
     return tbl
 
 
-def main(run_name, pool):
-    c = Config.from_run_name(run_name)
+def analyze_joker_samplings(run_path, pool):
+    c = Config(run_path / 'config.yml')
 
     # numbers we need to validate
     for path in [c.joker_results_path, c.tasks_path]:
@@ -121,8 +122,8 @@ def main(run_name, pool):
     # Get data files out of config file:
     logger.debug("Loading data...")
     allstar, _ = c.load_alldata()
-    apogee_ids = np.unique(allstar['APOGEE_ID'])
-    tasks = batch_tasks(len(apogee_ids), pool.size, arr=apogee_ids, args=(c, ))
+    source_ids = np.unique(allstar[c.source_id_colname])
+    tasks = batch_tasks(len(source_ids), pool.size, arr=source_ids, args=(c, ))
 
     logger.info(f'Done preparing tasks: {len(tasks)} stars in process queue')
 
@@ -136,23 +137,6 @@ def main(run_name, pool):
     # load results from running run_fit_constant.py:
     constant_path = os.path.join(c.run_path, 'constant.fits')
     constant_tbl = QTable.read(constant_path)
-    tbl = join(tbl, constant_tbl, keys='APOGEE_ID')
+    tbl = join(tbl, constant_tbl, keys=c.source_id_colname)
 
     tbl.write(c.metadata_joker_path, overwrite=True)
-
-
-if __name__ == '__main__':
-    from threadpoolctl import threadpool_limits
-    from hq.script_helpers import get_parser
-
-    # Define parser object
-    parser = get_parser(description='TODO',
-                        loggers=logger)
-
-    args = parser.parse_args()
-
-    with threadpool_limits(limits=1, user_api='blas'):
-        with args.Pool(**args.Pool_kwargs) as pool:
-            main(run_name=args.run_name, pool=pool)
-
-    sys.exit(0)
