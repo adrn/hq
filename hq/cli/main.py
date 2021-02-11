@@ -164,6 +164,10 @@ hq <command> [<args>]
 
 Available commands:
 {''.join(cmds)}
+
+See more usage information about a given command by running:
+    hq <command> --help
+
 """
 
 
