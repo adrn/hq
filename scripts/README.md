@@ -6,7 +6,7 @@
   `--path <path for run>` to all python calls below) to specify the HQ run
 * Create the prior cache: `hq make_prior_cache`
 * Set up the tasks used to parallelize and deploy: `hq make_tasks`
-* Run The Joker sampler on all stars: `python run_apogee.py`
+* Run The Joker sampler on all stars: `hq run_thejoker`
 * Analyze The Joker samplings to determine which stars are complete, which stars
   need to be followed up with standard MCMC:
   `python analyze_joker_samplings.py`

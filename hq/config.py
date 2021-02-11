@@ -40,6 +40,7 @@ class Config:
     prior_cache_file: (str, pathlib.Path) = None
     requested_samples_per_star: int = 1024
     randomize_prior_order: bool = False
+    init_batch_size: int = None
 
     # MCMC
     tune: int = 1000
@@ -80,11 +81,15 @@ class Config:
 
         # Specialized defaults
         if kw['prior_cache_file'] is None:
-            kw['prior_cache_file'] = (f"prior_samples_{kw['n_prior_samples']}"
-                                      f"_{kw['name']}.hdf5")
+            filename = (f"prior_samples_{kw['n_prior_samples']}"
+                        f"_{kw['name']}.hdf5")
+            kw['prior_cache_file'] = kw['cache_path'] / filename
 
         if kw['max_prior_samples'] is None:
             kw['max_prior_samples'] = kw['n_prior_samples']
+
+        if kw['init_batch_size'] is None:
+            kw['init_batch_size'] = min(250_000, kw['n_prior_samples'])
 
         # Normalize paths:
         for k, v in kw.items():

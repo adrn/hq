@@ -61,6 +61,11 @@ requested_samples_per_star: 1024
 ## Randomly draw samples from the prior cache:
 randomize_prior_order: True
 
+## Size of the initial batch of prior samples to use in iterative rejection
+## sampling. This must be smaller than the total number of prior samples.
+## (defaults to min(250_000, n_prior_samples))
+init_batch_size: null
+
 
 ##############################################################################
 ## Sampling parameters for MCMC:

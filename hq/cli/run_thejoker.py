@@ -68,7 +68,7 @@ def worker(task):
             samples = joker.iterative_rejection_sample(
                 data=data, n_requested_samples=c.requested_samples_per_star,
                 prior_samples=batch,
-                init_batch_size=250_000,
+                init_batch_size=c.init_batch_size,
                 growth_factor=32,
                 randomize_prior_order=c.randomize_prior_order,
                 return_logprobs=ln_prior, in_memory=True)
@@ -133,18 +133,19 @@ def tmpdir_combine(tmpdir, results_filename):
 def run_thejoker(run_path, pool, overwrite=False, seed=None, limit=None):
     c = Config(run_path / 'config.yml')
 
-    if not os.path.exists(c.prior_cache_file):
-        raise IOError(f"Prior cache file {c.prior_cache_file} does not exist! "
-                      "Did you run hq make_prior_cache?")
+    if not c.prior_cache_file.exists():
+        raise IOError(f"Prior cache file {str(c.prior_cache_file)} does not "
+                      "exist! Did you run hq make_prior_cache?")
 
-    if not os.path.exists(c.tasks_path):
-        raise IOError(f"Tasks file '{c.tasks_path}' does not exist! Did you "
-                      "run hq make_tasks?")
+    if not c.tasks_path.exists():
+        raise IOError(f"Tasks file '{str(c.tasks_path)}' does not exist! Did "
+                      "you run hq make_tasks?")
 
     # Make directory for temp. files, one per worker:
-    tmpdir = os.path.join(c.run_path, 'thejoker-tmp')
-    if os.path.exists(tmpdir):
-        logger.warning(f"Stale temp. file directory found at {tmpdir}: "
+    tmpdir = c.cache_path / 'thejoker-tmp'
+    print('yo fuck', tmpdir)
+    if tmpdir.exists():
+        logger.warning(f"Stale temp. file directory found at {str(tmpdir)}: "
                        "combining files first...")
         tmpdir_combine(tmpdir, c.joker_results_path)
 
@@ -175,7 +176,7 @@ def run_thejoker(run_path, pool, overwrite=False, seed=None, limit=None):
     logger.debug("Creating JokerPrior instance...")
     prior = c.get_prior()
 
-    os.makedirs(tmpdir)
+    tmpdir.mkdir(exist_ok=True)
     atexit.register(tmpdir_combine, tmpdir, c.joker_results_path)
 
     logger.debug("Preparing tasks...")

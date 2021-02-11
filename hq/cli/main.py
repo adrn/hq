@@ -96,7 +96,7 @@ class CLI:
                             type=int, help="Maximum number of stars to process"
                             )
 
-        args = parser.parse_args()
+        args = parser.parse_args(sys.argv[2:])
 
         if args.seed is None:
             args.seed = np.random.randint(2**32 - 1)
