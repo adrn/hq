@@ -58,6 +58,22 @@ class CLI:
             make_prior_cache(args.run_path, pool=pool,
                              overwrite=args.overwrite, seed=args.seed)
 
+    def make_tasks(self):
+        """Generate the data task file, used by MPI scripts."""
+        from .make_tasks import make_tasks
+        parser = get_parser(
+            description=(
+                "Generate an HDF5 file containing the data, but reprocessed "
+                "into a format that is faster to read with MPI."),
+            multiproc_options=False)
+        # HACK
+        parser.usage = 'hq make_tasks' + parser.format_usage()[9:]
+
+        args = parser.parse_args(sys.argv[2:])
+
+        with args.Pool() as pool:
+            make_tasks(args.run_path, pool=pool, overwrite=args.overwrite)
+
 
 # Auto-generate the usage block:
 cmds = []

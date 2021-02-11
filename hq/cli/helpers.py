@@ -38,7 +38,7 @@ def set_log_level(args, loggers):
         l.setLevel(log_level)
 
 
-def get_parser(description="", loggers=None):
+def get_parser(description="", loggers=None, multiproc_options=True):
     if loggers is None:
         loggers = [logger]
 
@@ -56,15 +56,15 @@ def get_parser(description="", loggers=None):
             set_log_level(parsed, loggers)
 
             # deal with multiproc:
-            if parsed.mpi:
+            if multiproc_options and parsed.mpi:
                 from schwimmbad.mpi import MPIPool
                 Pool = MPIPool
                 kw = dict()
-            elif parsed.mpiasync:
+            elif multiproc_options and parsed.mpiasync:
                 from schwimmbad.mpi import MPIAsyncPool
                 Pool = MPIAsyncPool
                 kw = dict()
-            elif parsed.n_procs > 1:
+            elif multiproc_options and parsed.n_procs > 1:
                 from schwimmbad import MultiPool
                 Pool = MultiPool
                 kw = dict(processes=parsed.n_procs)
@@ -97,12 +97,13 @@ def get_parser(description="", loggers=None):
                         action="store_true",
                         help="Overwrite any existing results for this run.")
 
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument("--procs", dest="n_procs", default=1,
-                       type=int, help="Number of processes.")
-    group.add_argument("--mpi", dest="mpi", default=False,
-                       action="store_true", help="Run with MPI.")
-    group.add_argument("--mpiasync", dest="mpiasync", default=False,
-                       action="store_true", help="Run with MPI async.")
+    if multiproc_options:
+        group = parser.add_mutually_exclusive_group()
+        group.add_argument("--procs", dest="n_procs", default=1,
+                           type=int, help="Number of processes.")
+        group.add_argument("--mpi", dest="mpi", default=False,
+                           action="store_true", help="Run with MPI.")
+        group.add_argument("--mpiasync", dest="mpiasync", default=False,
+                           action="store_true", help="Run with MPI async.")
 
     return parser
