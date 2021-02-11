@@ -41,7 +41,7 @@ def _prior_cache_worker(task):
 
 def make_prior_cache(run_path, pool, overwrite, seed, n_batches=None):
     c = Config(run_path / 'config.yml')
-    random_state = np.random.RandomState(seed)
+    random_state = np.random.default_rng(seed)
 
     if os.path.exists(c.prior_cache_file) and not overwrite:
         logger.debug(f"Prior cache file already exists at "
