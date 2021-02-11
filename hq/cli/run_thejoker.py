@@ -4,7 +4,6 @@ import glob
 import os
 import shutil
 import socket
-import sys
 import time
 
 # Third-party
@@ -18,7 +17,6 @@ theano.config.reoptimize_unpickled_function = False
 theano.config.cxx = ""
 import h5py
 import numpy as np
-from thejoker.logging import logger as joker_logger
 import thejoker as tj
 from thejoker.multiproc_helpers import batch_tasks
 from thejoker.utils import read_batch
@@ -29,7 +27,7 @@ from hq.config import Config
 
 
 def worker(task):
-    apogee_ids, worker_id, c, prior, tmpdir, global_rnd = task
+    source_ids, worker_id, c, prior, tmpdir, global_rnd = task
 
     # This worker's results:
     results_filename = os.path.join(tmpdir, f'worker-{worker_id}.hdf5')
@@ -39,7 +37,7 @@ def worker(task):
     prior = c.get_prior()
     joker = tj.TheJoker(prior, random_state=rnd)
     logger.debug(f"Worker {worker_id} on node {socket.gethostname()}: "
-                 f"{len(apogee_ids)} stars left to process")
+                 f"{len(source_ids)} stars left to process")
 
     # Initialize to get packed column order#
     logger.log(1,
@@ -49,9 +47,9 @@ def worker(task):
     # Also pre-load all data to avoid firing off so many file I/O operations:
     all_data = {}
     with h5py.File(c.tasks_path, 'r') as tasks_f:
-        for apogee_id in apogee_ids:
-            data = tj.RVData.from_timeseries(tasks_f[apogee_id])
-            all_data[apogee_id] = data
+        for source_id in source_ids:
+            data = tj.RVData.from_timeseries(tasks_f[source_id])
+            all_data[source_id] = data
     joker_helper = joker._make_joker_helper(data)
     _slice = slice(0, c.max_prior_samples, 1)
     batch = read_batch(c.prior_cache_file, joker_helper.packed_order,
@@ -60,9 +58,9 @@ def worker(task):
     ln_prior = read_batch(c.prior_cache_file, ['ln_prior'], _slice)[:, 0]
     logger.log(1, f"Worker {worker_id}: Loaded {len(batch)} prior samples")
 
-    for apogee_id in apogee_ids:
-        data = all_data[apogee_id]
-        logger.debug(f"Worker {worker_id}: Running {apogee_id} "
+    for source_id in source_ids:
+        data = all_data[source_id]
+        logger.debug(f"Worker {worker_id}: Running {source_id} "
                      f"({len(data)} visits)")
 
         t0 = time.time()
@@ -75,12 +73,12 @@ def worker(task):
                 randomize_prior_order=c.randomize_prior_order,
                 return_logprobs=ln_prior, in_memory=True)
         except Exception as e:
-            logger.warning(f"\t Failed sampling for star {apogee_id} "
+            logger.warning(f"\t Failed sampling for star {source_id} "
                            f"\n Error: {e}")
             continue
 
         dt = time.time() - t0
-        logger.debug(f"Worker {worker_id}: {apogee_id} ({len(data)} visits): "
+        logger.debug(f"Worker {worker_id}: {source_id} ({len(data)} visits): "
                      f"done sampling - {len(samples)} raw samples returned "
                      f"({dt:.2f} seconds)")
 
@@ -88,9 +86,9 @@ def worker(task):
         samples.wrap_K()
 
         with h5py.File(results_filename, 'a') as results_f:
-            if apogee_id in results_f:
-                del results_f[apogee_id]
-            g = results_f.create_group(apogee_id)
+            if source_id in results_f:
+                del results_f[source_id]
+            g = results_f.create_group(source_id)
             samples.write(g)
 
     result = {'tmp_filename': results_filename,
@@ -132,19 +130,19 @@ def tmpdir_combine(tmpdir, results_filename):
     shutil.rmtree(tmpdir)
 
 
-def main(run_name, pool, overwrite=False, seed=None, limit=None):
-    c = Config.from_run_name(run_name)
+def run_thejoker(run_path, pool, overwrite=False, seed=None, limit=None):
+    c = Config(run_path / 'config.yml')
 
     if not os.path.exists(c.prior_cache_file):
         raise IOError(f"Prior cache file {c.prior_cache_file} does not exist! "
-                      "Did you run make_prior_cache.py?")
+                      "Did you run hq make_prior_cache?")
 
     if not os.path.exists(c.tasks_path):
         raise IOError(f"Tasks file '{c.tasks_path}' does not exist! Did you "
-                      "run make_tasks.py?")
+                      "run hq make_tasks?")
 
     # Make directory for temp. files, one per worker:
-    tmpdir = os.path.join(c.run_path, 'thejoker')
+    tmpdir = os.path.join(c.run_path, 'thejoker-tmp')
     if os.path.exists(tmpdir):
         logger.warning(f"Stale temp. file directory found at {tmpdir}: "
                        "combining files first...")
@@ -153,26 +151,25 @@ def main(run_name, pool, overwrite=False, seed=None, limit=None):
     # ensure the results file exists
     logger.debug("Loading past results...")
     with h5py.File(c.joker_results_path, 'a') as f:
-        done_apogee_ids = list(f.keys())
+        done_source_ids = list(f.keys())
     if overwrite:
-        done_apogee_ids = list()
+        done_source_ids = list()
 
     # Get data files out of config file:
     logger.debug("Loading data...")
-    allstar, _ = c.load_alldata()
-    allstar = allstar[~np.isin(allstar['APOGEE_ID'], done_apogee_ids)]
+    data = c.data[~np.isin(c.data[c.source_id_colname], done_source_ids)]
 
     # Create TheJoker sampler instance with the specified random seed and pool
     rnd = np.random.RandomState(seed=seed)
     logger.debug(f"Processing pool has size = {pool.size}")
 
-    apogee_ids = np.unique(allstar['APOGEE_ID'])
+    source_ids = np.unique(data[c.source_id_colname])
     if limit is not None:
-        apogee_ids = apogee_ids[:limit]
+        source_ids = source_ids[:limit]
 
-    if done_apogee_ids:
-        logger.info(f"{len(done_apogee_ids)} already completed - "
-                    f"{len(apogee_ids)} left to process")
+    if done_source_ids:
+        logger.info(f"{len(done_source_ids)} already completed - "
+                    f"{len(source_ids)} left to process")
 
     # Load the prior:
     logger.debug("Creating JokerPrior instance...")
@@ -182,43 +179,13 @@ def main(run_name, pool, overwrite=False, seed=None, limit=None):
     atexit.register(tmpdir_combine, tmpdir, c.joker_results_path)
 
     logger.debug("Preparing tasks...")
-    if len(apogee_ids) > 10 * pool.size:
-        n_tasks = min(16 * pool.size, len(apogee_ids))
+    if len(source_ids) > 10 * pool.size:
+        n_tasks = min(16 * pool.size, len(source_ids))
     else:
         n_tasks = pool.size
-    tasks = batch_tasks(len(apogee_ids), n_tasks, arr=apogee_ids,
+    tasks = batch_tasks(len(source_ids), n_tasks, arr=source_ids,
                         args=(c, prior, tmpdir, rnd))
 
     logger.info(f'Done preparing tasks: split into {len(tasks)} task chunks')
     for r in pool.map(worker, tasks, callback=callback):
         pass
-
-
-if __name__ == '__main__':
-    from threadpoolctl import threadpool_limits
-    from hq.script_helpers import get_parser
-
-    # Define parser object
-    parser = get_parser(description='Run The Joker on APOGEE data',
-                        loggers=[logger, joker_logger])
-
-    parser.add_argument("-s", "--seed", dest="seed", default=None, type=int,
-                        help="Random number seed")
-
-    parser.add_argument("--limit", dest="limit", default=None,
-                        type=int, help="Maximum number of stars to process")
-
-    args = parser.parse_args()
-
-    seed = args.seed
-    if seed is None:
-        seed = np.random.randint(2**32 - 1)
-        logger.log(1,
-                   f"No random number seed specified, so using seed: {seed}")
-
-    with threadpool_limits(limits=1, user_api='blas'):
-        with args.Pool(**args.Pool_kwargs) as pool:
-            main(run_name=args.run_name, pool=pool, overwrite=args.overwrite,
-                 seed=args.seed, limit=args.limit)
-
-    sys.exit(0)

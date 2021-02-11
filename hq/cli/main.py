@@ -2,8 +2,13 @@
 import argparse
 import sys
 
+# Third-party
+import numpy as np
+from threadpoolctl import threadpool_limits
+
 # Package
 from .helpers import get_parser
+from ..log import logger
 
 
 class CLI:
@@ -73,6 +78,36 @@ class CLI:
 
         with args.Pool() as pool:
             make_tasks(args.run_path, pool=pool, overwrite=args.overwrite)
+
+    def run_thejoker(self):
+        """Run The Joker on the input data"""
+        from thejoker.logging import logger as joker_logger
+        from .run_thejoker import run_thejoker
+
+        parser = get_parser(
+            description=(
+                "This command is the main workhorse for HQ: it runs The Joker "
+                "on all of the input data and caches the samplings."),
+            loggers=[logger, joker_logger])
+
+        parser.add_argument("-s", "--seed", dest="seed", default=None,
+                            type=int, help="Random number seed")
+        parser.add_argument("--limit", dest="limit", default=None,
+                            type=int, help="Maximum number of stars to process"
+                            )
+
+        args = parser.parse_args()
+
+        if args.seed is None:
+            args.seed = np.random.randint(2**32 - 1)
+            logger.log(
+                1, f"No random seed specified, so using seed: {args.seed}")
+
+        with threadpool_limits(limits=1, user_api='blas'):
+            with args.Pool(**args.Pool_kwargs) as pool:
+                run_thejoker(run_path=args.run_path, pool=pool,
+                             overwrite=args.overwrite,
+                             seed=args.seed, limit=args.limit)
 
 
 # Auto-generate the usage block:
