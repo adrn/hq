@@ -25,9 +25,8 @@ def _prior_cache_worker(task):
     logger.debug(f"Worker {task_id} generating {n_samples} samples")
 
     if global_random_state is not None:
-        random_state = np.random.RandomState()
-        random_state.set_state(global_random_state.get_state())
-        random_state.seed(task_id)  # TODO: is this safe?
+        seed = global_random_state.integers(0, 2**28) + task_id
+        random_state = np.random.default_rng(seed)
     else:
         random_state = None
 
