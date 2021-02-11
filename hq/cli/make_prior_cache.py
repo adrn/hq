@@ -14,7 +14,6 @@ from thejoker.utils import batch_tasks
 # Project
 from hq.config import Config
 from hq.log import logger
-from hq.script_helpers import get_parser
 
 
 def _prior_cache_worker(task):
@@ -38,8 +37,8 @@ def _prior_cache_worker(task):
     return samples
 
 
-def main(name, pool, overwrite, seed, n_batches=None):
-    c = Config.from_run_name(name)
+def make_prior_cache(run_path, pool, overwrite, seed, n_batches=None):
+    c = Config(run_path / 'config.yml')
     random_state = np.random.RandomState(seed)
 
     if os.path.exists(c.prior_cache_file) and not overwrite:
@@ -70,21 +69,3 @@ def main(name, pool, overwrite, seed, n_batches=None):
             samples.write(f, append=i > 0)
 
     logger.debug("...done generating cache.")
-
-
-if __name__ == "__main__":
-    # Define parser object
-    parser = get_parser(description='Generate an HQ run template with the '
-                                    'specified name. After running this, you '
-                                    'then have to go in to the run directory '
-                                    'and edit the configuration.',
-                        loggers=logger)
-
-    parser.add_argument("-s", "--seed", dest="seed", default=None, type=int,
-                        help="Random number seed")
-
-    args = parser.parse_args()
-
-    with args.Pool(**args.Pool_kwargs) as pool:
-        main(args.run_name, pool=pool, overwrite=args.overwrite,
-             seed=args.seed)

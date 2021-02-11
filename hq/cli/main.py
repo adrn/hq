@@ -52,8 +52,7 @@ class CLI:
 
         parser.add_argument("-s", "--seed", dest="seed", default=None,
                             type=int, help="Random number seed")
-
-        args = parser.parse_args()
+        args = parser.parse_args(sys.argv[2:])
 
         with args.Pool(**args.Pool_kwargs) as pool:
             make_prior_cache(args.run_path, pool=pool,
