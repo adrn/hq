@@ -1,6 +1,5 @@
 # Standard library
 import os
-import sys
 
 # Third-party
 import theano
