@@ -4,7 +4,9 @@ include pyproject.toml
 include setup.cfg
 include hq/tests/coveragerc
 
-recursive-include hq/pkgdata *.yml *.py
+include hq/pkgdata/template_config.yml
+include hq/pkgdata/template_config.py
+
 recursive-include hq *.pyx *.c *.pxd
 recursive-include docs *
 recursive-include licenses *
