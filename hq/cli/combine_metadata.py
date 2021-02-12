@@ -5,7 +5,7 @@ theano.config.optimizer = 'None'
 theano.config.mode = 'FAST_COMPILE'
 theano.config.reoptimize_unpickled_function = False
 theano.config.cxx = ""
-from astropy.table import Table, QTable, join
+import astropy.table as at
 
 # Project
 from hq.config import Config
@@ -19,8 +19,8 @@ def combine_metadata(run_path, overwrite=False):
         logger.info(f"metadata file already exists {str(c.metadata_path)}")
         return
 
-    meta = Table.read(c.metadata_joker_path)
-    mcmc_meta = Table.read(c.metadata_mcmc_path)
+    meta = at.Table.read(c.metadata_joker_path)
+    mcmc_meta = at.Table.read(c.metadata_mcmc_path)
 
     final_colnames = [
         c.source_id_colname,
@@ -57,9 +57,10 @@ def combine_metadata(run_path, overwrite=False):
         'constant_ln_likelihood',
         'robust_constant_ln_likelihood']
 
-    master = join(meta, mcmc_meta, keys=c.source_id_colname, join_type='left',
-                  uniq_col_name="{table_name}{col_name}",
-                  table_names=["", "mcmc_"])
+    master = at.join(meta, mcmc_meta, keys=c.source_id_colname,
+                     join_type='left',
+                     uniq_col_name="{table_name}{col_name}",
+                     table_names=["", "mcmc_"])
 
     master['mcmc_completed'] = master['mcmc_completed'].filled(False)
     master['mcmc_success'] = master['mcmc_success'].filled(False)
@@ -79,10 +80,15 @@ def combine_metadata(run_path, overwrite=False):
             master[mcmc_colname][master['mcmc_success']]
 
     master = master[final_colnames]
-    master = QTable(master)
+    master = at.QTable(master)
 
     for col in master.colnames:
         if col.endswith('_err'):
             master[col][~master['mcmc_completed']] = np.nan
+
+    # load results from running run_fit_constant.py:
+    constant_tbl = at.QTable.read(c.constant_results_file)
+    master = at.join(master, constant_tbl, keys=c.source_id_colname)
+    master = at.unique(master, keys=c.source_id_colname)
 
     master.write(c.metadata_path, overwrite=True)

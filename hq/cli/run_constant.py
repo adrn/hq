@@ -97,12 +97,9 @@ def worker(task):
 def run_constant(run_path, pool, overwrite=False):
     c = Config(run_path / 'config.yml')
 
-    # Get paths to files needed to run:
-    results_path = c.cache_path / 'constant.fits'
-
-    if results_path.exists() and not overwrite:
-        logger.info(f"Results file {str(results_path)} already exists. Use "
-                    "--overwrite if needed")
+    if c.constant_results_file.exists() and not overwrite:
+        logger.info(f"Results file {str(c.constant_results_file)} already "
+                    "exists. Use --overwrite if needed")
         return
 
     if not c.tasks_path.exists():
@@ -127,4 +124,4 @@ def run_constant(run_path, pool, overwrite=False):
         results.append(r)
 
     tbl = Table([item for sublist in results for item in sublist])
-    tbl.write(results_path, overwrite=True)
+    tbl.write(c.constant_results_file, overwrite=True)

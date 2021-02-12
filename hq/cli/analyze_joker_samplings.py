@@ -134,9 +134,4 @@ def analyze_joker_samplings(run_path, pool):
     tbl = at.vstack(sub_tbls)
     logger.info(f"Unimodal sources: {tbl['unimodal]'].sum()}")
 
-    # load results from running run_fit_constant.py:
-    constant_tbl = at.QTable.read(c.cache_path / 'constant.fits')
-    tbl = at.join(tbl, constant_tbl, keys=c.source_id_colname)
-    tbl = at.unique(tbl, keys=c.source_id_colname)
-
     tbl.write(c.metadata_joker_path, overwrite=True)

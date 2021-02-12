@@ -41,11 +41,42 @@ class CLI:
                 "Generate an HQ run template in the specified directory. "
                 "If the path does not exist yet, it will be created. "
                 "After running this, you should go into the run directory "
-                "and edit the configuration file, config.yml."))
+                "and edit the configuration file, config.yml."),
+            multiproc_options=False)
+
         # HACK
         parser.usage = 'hq init' + parser.format_usage()[9:]
         args = parser.parse_args(sys.argv[2:])
         init_run(args.run_path)
+
+    def status(self):
+        """Display the status of steps in an HQ run"""
+        from .status import get_status
+
+        parser = get_parser(
+            description=(
+                "TODO"),
+            multiproc_options=False)
+        # HACK
+        parser.usage = 'hq status' + parser.format_usage()[9:]
+        args = parser.parse_args(sys.argv[2:])
+
+        name, status = get_status(args.run_path)
+        if name is None:
+            raise RuntimeError("Failed to get status for HQ run! Check the "
+                               "logger output for more information")
+
+        print("**********")
+        print("HQ Status:")
+        print(f"Run name '{name}'")
+        maxlen = max([len(command) for command in status])
+        for command, done in status.items():
+            if done:
+                icon = '✅'
+            else:
+                icon = '❌'
+
+            print(f"{command.ljust(maxlen)} {icon}")
 
     def make_prior_cache(self):
         """Create the cache file of prior samples"""

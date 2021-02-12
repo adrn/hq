@@ -135,6 +135,10 @@ class Config:
     def metadata_mcmc_path(self):
         return self.cache_path / 'metadata-mcmc.fits'
 
+    @property
+    def constant_results_file(self):
+        return self.cache_path / 'constant.fits'
+
     # ------------
     # Data loading
     #
