@@ -3,11 +3,11 @@ import os
 
 # Third-party
 import astropy.units as u
+from astropy.stats import median_absolute_deviation as MAD
 import astropy.table as at
 import h5py
 import numpy as np
 from tqdm import tqdm
-from scipy.special import logsumexp
 import thejoker as tj
 from thejoker.multiproc_helpers import batch_tasks
 from thejoker.samples_analysis import (is_P_unimodal, max_phase_gap,
@@ -17,7 +17,52 @@ from thejoker.samples_analysis import (is_P_unimodal, max_phase_gap,
 # Project
 from hq.log import logger
 from hq.config import Config
-from hq.samples_analysis import constant_model_evidence
+
+
+def compute_metadata(c, samples, data, MAP_err=False):
+    row = {}
+    row['n_visits'] = len(data)
+    row['baseline'] = (data.t.mjd.max() - data.t.mjd.min()) * u.day
+
+    MAP_idx = (samples['ln_prior'] + samples['ln_likelihood']).argmax()
+    MAP_sample = samples[MAP_idx]
+    for k in MAP_sample.par_names:
+        row['MAP_'+k] = MAP_sample[k]
+
+    if MAP_err:
+        err = dict()
+        for k in samples.par_names:
+            err[k] = 1.5 * MAD(samples[k])
+            row[f'MAP_{k}_err'] = err[k]
+
+    row['t_ref_bmjd'] = MAP_sample.t_ref.tcb.mjd
+    row['MAP_t0_bmjd'] = MAP_sample.get_t0().tcb.mjd
+
+    row['MAP_ln_likelihood'] = samples['ln_likelihood'][MAP_idx]
+    row['MAP_ln_prior'] = samples['ln_prior'][MAP_idx]
+
+    if len(samples) == c.requested_samples_per_star:
+        row['joker_completed'] = True
+    else:
+        row['joker_completed'] = False
+
+    if is_P_unimodal(samples, data):
+        row['unimodal'] = True
+    else:
+        row['unimodal'] = False
+
+    row['baseline'] = (data.t.mjd.max() - data.t.mjd.min()) * u.day
+    row['max_phase_gap'] = max_phase_gap(MAP_sample, data)
+    row['phase_coverage'] = phase_coverage(MAP_sample, data)
+    row['periods_spanned'] = periods_spanned(MAP_sample, data)
+    row['phase_coverage_per_period'] = phase_coverage_per_period(
+        MAP_sample, data)
+
+    # Use the max marginal likelihood sample
+    lls = samples.ln_unmarginalized_likelihood(data)
+    row['max_unmarginalized_ln_likelihood'] = lls.max()
+
+    return row
 
 
 def worker(task):
@@ -44,46 +89,8 @@ def worker(task):
             logger.warning(f"No samples for: {source_id}")
             return None, None
 
-        row = dict()
+        row = compute_metadata(c, samples, data)
         row[c.source_id_colname] = source_id
-        row['n_visits'] = len(data)
-
-        MAP_idx = (samples['ln_prior'] + samples['ln_likelihood']).argmax()
-        MAP_sample = samples[MAP_idx]
-        for k in MAP_sample.par_names:
-            row['MAP_'+k] = MAP_sample[k]
-        row['t_ref_bmjd'] = MAP_sample.t_ref.tcb.mjd
-        row['MAP_t0_bmjd'] = MAP_sample.get_t0().tcb.mjd
-
-        row['MAP_ln_likelihood'] = samples['ln_likelihood'][MAP_idx]
-        row['MAP_ln_prior'] = samples['ln_prior'][MAP_idx]
-
-        if len(samples) == c.requested_samples_per_star:
-            row['joker_completed'] = True
-        else:
-            row['joker_completed'] = False
-
-        if is_P_unimodal(samples, data):
-            row['unimodal'] = True
-        else:
-            row['unimodal'] = False
-
-        row['baseline'] = (data.t.mjd.max() - data.t.mjd.min()) * u.day
-        row['max_phase_gap'] = max_phase_gap(MAP_sample, data)
-        row['phase_coverage'] = phase_coverage(MAP_sample, data)
-        row['periods_spanned'] = periods_spanned(MAP_sample, data)
-        row['phase_coverage_per_period'] = phase_coverage_per_period(
-            MAP_sample, data)
-
-        # Use the max marginal likelihood sample
-        lls = samples.ln_unmarginalized_likelihood(data)
-        row['max_unmarginalized_ln_likelihood'] = lls.max()
-
-        # Compute the evidence p(D) for the Kepler model, and constant RV model
-        row['constant_ln_evidence'] = constant_model_evidence(data)
-        row['kepler_ln_evidence'] = (logsumexp(samples['ln_likelihood']
-                                               + samples['ln_prior'])
-                                     - np.log(len(samples)))
 
         if units is None:
             units = dict()
