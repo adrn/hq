@@ -102,18 +102,18 @@ release = package.__version__
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes. To override the custom theme, set this to the
 # name of a builtin theme or the name of a custom theme in html_theme_path.
-#html_theme = None
+html_theme = 'furo'
 
 
-html_theme_options = {
-    'logotext1': 'hq',  # white,  semi-bold
-    'logotext2': '',  # orange, light
-    'logotext3': ':docs'   # white,  light
-    }
+# html_theme_options = {
+#     'logotext1': 'hq',  # white,  semi-bold
+#     'logotext2': '',  # orange, light
+#     'logotext3': ':docs'   # white,  light
+#     }
 
 
 # Custom sidebar templates, maps document names to template names.
-#html_sidebars = {}
+html_sidebars = {}
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
@@ -130,7 +130,8 @@ html_theme_options = {
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
-html_title = '{0} v{1}'.format(project, release)
+# html_title = '{0} v{1}'.format(project, release)
+html_title = project
 
 # Output file base name for HTML help builder.
 htmlhelp_basename = project + 'doc'

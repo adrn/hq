@@ -1,5 +1,5 @@
-Documentation
-=============
+HQ: A pipeline tool for The Joker
+=================================
 
 This package simplifies and enables creating pipelines to run `The Joker
 <https://github.com/adrn/thejoker>`_ on large datasets of radial velocities. The
@@ -76,6 +76,8 @@ Example pipeline
 
     hq analyze_joker
 
+* TODO: HQ_THEANO_PATH=/tmp/theano_cache/
+
 * **Run standard MCMC on the unimodal samplings**: TODO::
 
     hq run_mcmc
@@ -87,3 +89,11 @@ Example pipeline
 * **Combine the metadata files**: TODO::
 
     hq combine_metadata
+
+
+.. toctree::
+    :caption: Development
+    :hidden:
+
+    GitHub Repository <https://github.com/adrn/hq>
+    The Joker <https://github.com/adrn/thejoker>
