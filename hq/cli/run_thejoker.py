@@ -46,7 +46,7 @@ def worker(task):
 
     # Also pre-load all data to avoid firing off so many file I/O operations:
     all_data = {}
-    with h5py.File(c.tasks_path, 'r') as tasks_f:
+    with h5py.File(c.tasks_file, 'r') as tasks_f:
         for source_id in source_ids:
             data = tj.RVData.from_timeseries(tasks_f[source_id])
             all_data[source_id] = data
@@ -92,7 +92,7 @@ def worker(task):
             samples.write(g)
 
     result = {'tmp_filename': results_filename,
-              'joker_results_path': c.joker_results_path,
+              'joker_results_file': c.joker_results_file,
               'hostname': socket.gethostname(),
               'worker_id': worker_id}
     return result
@@ -100,7 +100,7 @@ def worker(task):
 
 def callback(result):
     tmp_file = result['tmp_filename']
-    joker_results_file = result['joker_results_path']
+    joker_results_file = result['joker_results_file']
 
     logger.debug(f"Worker {result['worker_id']} on {result['hostname']}: "
                  f"Combining results from {tmp_file} into {joker_results_file}"
@@ -137,8 +137,8 @@ def run_thejoker(run_path, pool, overwrite=False, seed=None, limit=None):
         raise IOError(f"Prior cache file {str(c.prior_cache_file)} does not "
                       "exist! Did you run hq make_prior_cache?")
 
-    if not c.tasks_path.exists():
-        raise IOError(f"Tasks file '{str(c.tasks_path)}' does not exist! Did "
+    if not c.tasks_file.exists():
+        raise IOError(f"Tasks file '{str(c.tasks_file)}' does not exist! Did "
                       "you run hq make_tasks?")
 
     # Make directory for temp. files, one per worker:
@@ -147,11 +147,11 @@ def run_thejoker(run_path, pool, overwrite=False, seed=None, limit=None):
     if tmpdir.exists():
         logger.warning(f"Stale temp. file directory found at {str(tmpdir)}: "
                        "combining files first...")
-        tmpdir_combine(tmpdir, c.joker_results_path)
+        tmpdir_combine(tmpdir, c.joker_results_file)
 
     # ensure the results file exists
     logger.debug("Loading past results...")
-    with h5py.File(c.joker_results_path, 'a') as f:
+    with h5py.File(c.joker_results_file, 'a') as f:
         done_source_ids = list(f.keys())
     if overwrite:
         done_source_ids = list()
@@ -177,7 +177,7 @@ def run_thejoker(run_path, pool, overwrite=False, seed=None, limit=None):
     prior = c.get_prior()
 
     tmpdir.mkdir(exist_ok=True)
-    atexit.register(tmpdir_combine, tmpdir, c.joker_results_path)
+    atexit.register(tmpdir_combine, tmpdir, c.joker_results_file)
 
     logger.debug("Preparing tasks...")
     if len(source_ids) > 10 * pool.size:

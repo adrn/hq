@@ -112,27 +112,27 @@ class Config:
     # File paths
     #
     @property
-    def joker_results_path(self):
+    def joker_results_file(self):
         return self.cache_path / 'thejoker-samples.hdf5'
 
     @property
-    def mcmc_results_path(self):
+    def mcmc_results_file(self):
         return self.cache_path / 'mcmc-samples.hdf5'
 
     @property
-    def tasks_path(self):
+    def tasks_file(self):
         return self.cache_path / 'tasks.hdf5'
 
     @property
-    def metadata_path(self):
+    def metadata_file(self):
         return self.cache_path / 'metadata.fits'
 
     @property
-    def metadata_joker_path(self):
+    def metadata_joker_file(self):
         return self.cache_path / 'metadata-thejoker.fits'
 
     @property
-    def metadata_mcmc_path(self):
+    def metadata_mcmc_file(self):
         return self.cache_path / 'metadata-mcmc.fits'
 
     @property

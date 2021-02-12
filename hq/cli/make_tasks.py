@@ -11,8 +11,8 @@ from hq.config import Config
 def make_tasks(run_path, pool, overwrite=False):
     c = Config(run_path / 'config.yml')
 
-    if c.tasks_path.exists() and not overwrite:
-        logger.info(f"File {str(c.tasks_path)} already exists: Use "
+    if c.tasks_file.exists() and not overwrite:
+        logger.info(f"File {str(c.tasks_file)} already exists: Use "
                     "-o/--overwrite if needed")
         return
 
@@ -25,7 +25,7 @@ def make_tasks(run_path, pool, overwrite=False):
 
     logger.debug("Loading data and preparing tasks...")
     source_ids = np.unique(c.data[c.source_id_colname])
-    with h5py.File(c.tasks_path, 'w') as f:
+    with h5py.File(c.tasks_file, 'w') as f:
         for source_id in tqdm(source_ids):
             rvdata = c.get_source_data(source_id)
             g = f.create_group(source_id)

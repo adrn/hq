@@ -33,7 +33,7 @@ def worker(task):
 
     # This worker's results:
     results_filename = os.path.join(tmpdir, f'worker-{worker_id}.hdf5')
-    metadata = QTable.read(c.metadata_path)
+    metadata = QTable.read(c.metadata_file)
 
     rnd = global_rnd.seed(worker_id)
     logger.log(1, f"Worker {worker_id}: Creating TheJoker instance with {rnd}")
@@ -46,7 +46,7 @@ def worker(task):
     logger.log(1,
                f"Worker {worker_id}: Loading prior samples from cache "
                f"{c.prior_cache_file}")
-    with h5py.File(c.tasks_path, 'r') as tasks_f:
+    with h5py.File(c.tasks_file, 'r') as tasks_f:
         data = tj.RVData.from_timeseries(tasks_f[apogee_ids[0]])
     joker_helper = joker._make_joker_helper(data)
     _slice = slice(0, c.max_prior_samples, 1)
@@ -61,7 +61,7 @@ def worker(task):
             logger.debug(f"{apogee_id} not found in metadata file!")
             continue
 
-        with h5py.File(c.tasks_path, 'r') as tasks_f:
+        with h5py.File(c.tasks_file, 'r') as tasks_f:
             data = tj.RVData.from_timeseries(tasks_f[apogee_id])
 
         # Subtract out MAP sample, run on residual:
@@ -104,7 +104,7 @@ def worker(task):
             samples.write(g)
 
     result = {'tmp_filename': results_filename,
-              'joker_results_path': results_path,
+              'joker_results_file': results_path,
               'hostname': socket.gethostname(),
               'worker_id': worker_id}
     return result

@@ -15,12 +15,12 @@ from hq.log import logger
 def combine_metadata(run_path, overwrite=False):
     c = Config(run_path / 'config.yml')
 
-    if c.metadata_path.exists() and not overwrite:
-        logger.info(f"metadata file already exists {str(c.metadata_path)}")
+    if c.metadata_file.exists() and not overwrite:
+        logger.info(f"metadata file already exists {str(c.metadata_file)}")
         return
 
-    meta = at.Table.read(c.metadata_joker_path)
-    mcmc_meta = at.Table.read(c.metadata_mcmc_path)
+    meta = at.Table.read(c.metadata_joker_file)
+    mcmc_meta = at.Table.read(c.metadata_mcmc_file)
 
     final_colnames = [
         c.source_id_colname,
@@ -91,4 +91,4 @@ def combine_metadata(run_path, overwrite=False):
     master = at.join(master, constant_tbl, keys=c.source_id_colname)
     master = at.unique(master, keys=c.source_id_colname)
 
-    master.write(c.metadata_path, overwrite=True)
+    master.write(c.metadata_file, overwrite=True)

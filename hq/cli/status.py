@@ -21,12 +21,12 @@ def get_status(run_path):
     status = {}
 
     status['make_prior_cache'] = c.prior_cache_file.exists()
-    status['make_tasks'] = c.tasks_path.exists()
-    status['run_thejoker'] = c.joker_results_path.exists()
-    status['analyze_thejoker'] = c.metadata_joker_path.exists()
-    status['run_mcmc'] = c.mcmc_results_path.exists()
-    status['analyze_mcmc'] = c.metadata_mcmc_path.exists()
+    status['make_tasks'] = c.tasks_file.exists()
+    status['run_thejoker'] = c.joker_results_file.exists()
+    status['analyze_thejoker'] = c.metadata_joker_file.exists()
+    status['run_mcmc'] = c.mcmc_results_file.exists()
+    status['analyze_mcmc'] = c.metadata_mcmc_file.exists()
     status['run_constant'] = c.constant_results_file.exists()
-    status['combine_metadata'] = c.metadata_path.exists()
+    status['combine_metadata'] = c.metadata_file.exists()
 
     return c.name, status

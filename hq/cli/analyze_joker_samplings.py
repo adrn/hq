@@ -74,10 +74,10 @@ def worker(task):
     rows = []
     units = None
     for source_id in source_ids:
-        with h5py.File(c.tasks_path, 'r') as tasks_f:
+        with h5py.File(c.tasks_file, 'r') as tasks_f:
             data = tj.RVData.from_timeseries(tasks_f[source_id])
 
-        with h5py.File(c.joker_results_path, 'r') as results_f:
+        with h5py.File(c.joker_results_file, 'r') as results_f:
             if source_id not in results_f:
                 logger.warning(f"No samples for: {source_id}")
                 return None, None
@@ -114,7 +114,7 @@ def analyze_joker_samplings(run_path, pool):
     c = Config(run_path / 'config.yml')
 
     # numbers we need to validate
-    for path in [c.joker_results_path, c.tasks_path]:
+    for path in [c.joker_results_file, c.tasks_file]:
         if not os.path.exists(path):
             raise IOError(f"File {path} does not exist! Did you run the "
                           "preceding pipeline steps?")
@@ -134,4 +134,4 @@ def analyze_joker_samplings(run_path, pool):
     tbl = at.vstack(sub_tbls)
     logger.info(f"Unimodal sources: {tbl['unimodal]'].sum()}")
 
-    tbl.write(c.metadata_joker_path, overwrite=True)
+    tbl.write(c.metadata_joker_file, overwrite=True)

@@ -17,7 +17,7 @@ def run_mcmc(run_path, index, overwrite=False):
     # Load the analyzed joker samplings file, only keep unimodal:
     c = Config(run_path / 'config.yml')
 
-    joker_metadata = at.QTable.read(c.metadata_joker_path)
+    joker_metadata = at.QTable.read(c.metadata_joker_file)
     unimodal_tbl = joker_metadata[joker_metadata['unimodal']]
 
     if index > len(unimodal_tbl)-1:

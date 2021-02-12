@@ -41,7 +41,7 @@ def main(run_name, pool, overwrite=False):
     c = Config.from_run_name(run_name)
     logger.debug(f'Loaded config for run {run_name}')
 
-    meta = at.Table.read(c.metadata_path)
+    meta = at.Table.read(c.metadata_file)
 
     samples_path = join(c.run_path, 'samples')
     logger.debug(f'Writing samples to {samples_path}')
@@ -61,10 +61,10 @@ def main(run_name, pool, overwrite=False):
             continue
 
         if row['mcmc_success']:
-            tasks.append((apogee_id, c.mcmc_results_path,
+            tasks.append((apogee_id, c.mcmc_results_file,
                           samples_path, c))
         else:
-            tasks.append((apogee_id, c.joker_results_path,
+            tasks.append((apogee_id, c.joker_results_file,
                           samples_path, c))
 
     for r in tqdm(pool.map(worker, tasks), total=len(tasks)):

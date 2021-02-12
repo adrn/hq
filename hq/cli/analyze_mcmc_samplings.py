@@ -33,7 +33,7 @@ def worker(task):
     sub_samples = {}
     units = None
     for source_id in source_ids:
-        with h5py.File(c.tasks_path, 'r') as tasks_f:
+        with h5py.File(c.tasks_file, 'r') as tasks_f:
             data = tj.RVData.from_timeseries(tasks_f[source_id])
 
         this_mcmc_path = os.path.join(c.cache_path, 'mcmc', source_id)
@@ -115,10 +115,10 @@ def analyze_mcmc_samplings(run_path, pool):
     for k in result['units']:
         tbl[k].unit = result['units'][k]
     tbl = QTable(tbl)
-    tbl.write(c.metadata_mcmc_path, overwrite=True)
+    tbl.write(c.metadata_mcmc_file, overwrite=True)
 
     # Now write out all of the individual samplings:
-    with h5py.File(c.mcmc_results_path, 'a') as results_f:
+    with h5py.File(c.mcmc_results_file, 'a') as results_f:
         for source_id, samples in all_samples.items():
             if source_id in results_f:
                 del results_f[source_id]

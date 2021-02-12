@@ -56,7 +56,7 @@ def worker(task):
 
     rows = []
     for source_id in source_ids:
-        with h5py.File(c.tasks_path, 'r') as tasks_f:
+        with h5py.File(c.tasks_file, 'r') as tasks_f:
             data = tj.RVData.from_timeseries(tasks_f[source_id])
 
         rv = data.rv.to_value(u.km/u.s).astype('f8')
@@ -102,8 +102,8 @@ def run_constant(run_path, pool, overwrite=False):
                     "exists. Use --overwrite if needed")
         return
 
-    if not c.tasks_path.exists():
-        raise IOError(f"Tasks file '{str(c.tasks_path)}' does not exist! Did "
+    if not c.tasks_file.exists():
+        raise IOError(f"Tasks file '{str(c.tasks_file)}' does not exist! Did "
                       "you run hq make_tasks?")
 
     # Get data files out of config file:
