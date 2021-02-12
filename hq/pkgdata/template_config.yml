@@ -6,19 +6,35 @@
 ## unmodified. Other parameters have defaults set in the file below.
 
 ##############################################################################
-## General parameters and data:
+## General parameters and data loading:
 ##
 
 ## The name of the run (string):
-name: null
+name: null  # REQUIRED
 
-## The paths to the APOGEE allStar and allVisit files:
-## **REQUIRED**: please edit these
-allstar_filename: null
-allvisit_filename: null
+## A brief description of the run:
+description: ''
 
-## The minimum number of visits to accept when filtering sources:
-min_nvisits: 3
+## A path to a directory where HQ will store data products:
+## (this defaults to the path where this config file sits)
+cache_path: null
+
+## The path to the source data file, which should contain radial velocity
+## measurements, one per row, for multiple sources, and the data format as a
+## string, which is passed to Astropy's Table reader:
+input_data_file: null  # REQUIRED
+input_data_format: null  # (e.g., 'fits' or 'ascii.csv')
+
+## The column name in the input data file that is unique per source:
+source_id_colname: null  # REQUIRED
+
+## The column names in the input data file that contains the radial velocity,
+## time, and radial velocity uncertainty data:
+rv_colname: null  # REQUIRED
+rv_error_colname: null  # REQUIRED
+time_colname: null  # REQUIRED
+time_format: null  # REQUIRED (e.g., 'jd' or 'mjd')
+time_scale: 'utc'  # (e.g., 'utc' or 'tdb' for Solar System barycentric)
 
 
 ##############################################################################
@@ -31,14 +47,24 @@ prior_file: 'prior.py'
 ## Number of prior samples to generate and cache:
 n_prior_samples: 500_000_000
 
-## Name of the prior cache file:
+## The maximum number of prior samples to use when running The Joker:
+## (this defaults to the value set in n_prior_samples)
+max_prior_samples: null
+
+## Name of the prior cache file to generate and/or use:
+## (this defaults to a filename in the cache_path)
 prior_cache_file: null
 
 ## The number of posterior samples to generate per source:
 requested_samples_per_star: 1024
 
-## Randomly draw samples from the prior cache. This will slow things down!
-randomize_prior_order: False
+## Randomly draw samples from the prior cache:
+randomize_prior_order: True
+
+## Size of the initial batch of prior samples to use in iterative rejection
+## sampling. This must be smaller than the total number of prior samples.
+## (defaults to min(250_000, n_prior_samples))
+init_batch_size: null
 
 
 ##############################################################################

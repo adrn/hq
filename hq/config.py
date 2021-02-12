@@ -1,47 +1,46 @@
 # Standard library
 from dataclasses import dataclass, fields
-import os
+import pathlib
 import importlib.util as iu
 
 # Third-party
-from astropy.io import fits
 import astropy.table as at
+from astropy.time import Time
+import astropy.units as u
+from thejoker.data import RVData
 import yaml
 
 # Project
 from .log import logger
-from .data import filter_alldata, get_rvdata
 
-__all__ = ['HQ_CACHE_PATH', 'Config']
-
-HQ_CACHE_PATH = os.path.expanduser(
-    os.environ.get("HQ_CACHE_PATH", os.path.join("~", ".hq")))
-
-if not os.path.exists(HQ_CACHE_PATH):
-    os.makedirs(HQ_CACHE_PATH, exist_ok=True)
-
-logger.debug("Using cache path:\n\t {}\nSet the environment variable "
-             "'HQ_CACHE_PATH' to change.".format(HQ_CACHE_PATH))
+__all__ = ['Config']
 
 
 @dataclass
 class Config:
-    name: str = ''
-    allstar_filename: str = ''
-    allvisit_filename: str = ''
-    min_nvisits: int = 3
+    name: str = None
+    description: str = ''
+    cache_path: (str, pathlib.Path) = None
 
-    # Calibrated visit RV uncertainties
-    visit_error_filename: str = ''
-    visit_error_colname: str = 'CALIB_VERR'
+    input_data_file: (str, pathlib.Path) = None
+    input_data_format: str = None  # passed to astropy.table.Table.read()
+    source_id_colname: str = None
+
+    # Data specification
+    rv_colname: str = None
+    rv_error_colname: str = None
+    time_colname: str = None  # e.g., 'JD'
+    time_format: str = 'jd'  # passed to astropy.time.Time()
+    time_scale: str = 'tdb'  # passed to astropy.time.Time()
 
     # The Joker
-    prior_file: str = 'prior.py'
-    n_prior_samples: int = 500_000_000
-    max_prior_samples: int = 500_000_000
-    prior_cache_file: str = ''
+    prior_file: (str, pathlib.Path) = 'prior.py'
+    n_prior_samples: int = None
+    max_prior_samples: int = None
+    prior_cache_file: (str, pathlib.Path) = None
     requested_samples_per_star: int = 1024
     randomize_prior_order: bool = False
+    init_batch_size: int = None
 
     # MCMC
     tune: int = 1000
@@ -49,140 +48,113 @@ class Config:
     target_accept: float = 0.95
 
     def __init__(self, filename):
-        filename = os.path.abspath(os.path.expanduser(filename))
-        if not os.path.exists(filename):
-            raise IOError(f"Config file {filename} does not exist.")
+        self._load_validate_config_values(filename)
+        self._cache = {}
+
+    def _load_validate_config_values(self, filename):
+        filename = pathlib.Path(filename).expanduser().absolute()
+        if not filename.exists():
+            raise IOError(f"Config file {str(filename)} does not exist.")
 
         with open(filename, 'r') as f:
             vals = yaml.safe_load(f.read())
 
-        self._run_path, run_name = os.path.split(filename)
-        self._load_validate(vals)
-
-        self._cache = {}
-        if (self.visit_error_filename is not None
-                and len(self.visit_error_filename) > 0):
-            self._cache['visit_err_tbl'] = fits.getdata(
-                self.visit_error_filename)
-
-    def _load_validate(self, vals):
         # Validate types:
+        kw = {}
         for field in fields(self):
-            default = None
-            if field.name == 'prior_cache_file':
-                default = (f'prior_samples_{self.n_prior_samples}'
-                           f'_{self.name}.hdf5')
+            default = field.default
+            if field.name == 'cache_path':
+                default = filename.parent
+                logger.debug("The cache path was not explicitly specified, so "
+                             "using the config file path as the cache path: "
+                             f"{str(default)}")
 
             val = vals.get(field.name, None)
             if val is None:
                 val = default
-            setattr(self, field.name, val)
 
-            attr = getattr(self, field.name)
-            if not isinstance(attr, field.type):
-                msg = (f"Config field '{field.name}' has type {type(attr)}, "
-                       f"but should be {field.type}")
-                raise ValueError(msg)
+            if val is not None and (field.name.endswith('_file')
+                                    or field.name.endswith('_path')):
+                val = pathlib.Path(val)
 
-        self.allstar_filename = os.path.abspath(
-            os.path.expanduser(self.allstar_filename))
-        self.allvisit_filename = os.path.abspath(
-            os.path.expanduser(self.allvisit_filename))
+            kw[field.name] = val
+
+        # Specialized defaults
+        if kw['prior_cache_file'] is None:
+            filename = (f"prior_samples_{kw['n_prior_samples']}"
+                        f"_{kw['name']}.hdf5")
+            kw['prior_cache_file'] = kw['cache_path'] / filename
+
+        if kw['max_prior_samples'] is None:
+            kw['max_prior_samples'] = kw['n_prior_samples']
+
+        if kw['init_batch_size'] is None:
+            kw['init_batch_size'] = min(250_000, kw['n_prior_samples'])
 
         # Normalize paths:
-        if os.path.abspath(self.prior_file) != self.prior_file:
-            self.prior_file = os.path.join(self.run_path, self.prior_file)
+        for k, v in kw.items():
+            if isinstance(v, pathlib.Path):
+                kw[k] = v.expanduser().absolute()
 
-        if os.path.abspath(self.prior_cache_file) != self.prior_cache_file:
-            self.prior_cache_file = os.path.join(self.run_path,
-                                                 self.prior_cache_file)
+        # Validate:
+        allowed_None_names = ['input_data_format']
+        for field in fields(self):
+            val = kw[field.name]
+            if (not isinstance(val, field.type)
+                    and field.name not in allowed_None_names):
+                msg = (f"Config field '{field.name}' has type {type(val)}, "
+                       f"but should be one of: {field.type}")
+                raise ValueError(msg)
 
-    @classmethod
-    def from_run_name(cls, name):
-        return cls(os.path.join(HQ_CACHE_PATH, name, 'config.yml'))
+            setattr(self, field.name, val)
 
-    # ------------------------------------------------------------------------
-    # Paths:
-
-    @property
-    def run_path(self):
-        _path = self._run_path
-        if _path is None:
-            _path = os.path.join(HQ_CACHE_PATH, self.name)
-        os.makedirs(_path, exist_ok=True)
-        return _path
-
+    # ----------
+    # File paths
+    #
     @property
     def joker_results_path(self):
-        return os.path.join(self.run_path, 'thejoker-samples.hdf5')
+        return self.cache_path / 'thejoker-samples.hdf5'
 
     @property
     def mcmc_results_path(self):
-        return os.path.join(self.run_path, 'mcmc-samples.hdf5')
+        return self.cache_path / 'mcmc-samples.hdf5'
 
     @property
     def tasks_path(self):
-        return os.path.join(self.run_path, 'tmp-tasks.hdf5')
+        return self.cache_path / 'tasks.hdf5'
 
     @property
     def metadata_path(self):
-        return os.path.join(self.run_path, 'metadata.fits')
+        return self.cache_path / 'metadata.fits'
 
     @property
     def metadata_joker_path(self):
-        return os.path.join(self.run_path, 'metadata-thejoker.fits')
+        return self.cache_path / 'metadata-thejoker.fits'
 
     @property
     def metadata_mcmc_path(self):
-        return os.path.join(self.run_path, 'metadata-mcmc.fits')
+        return self.cache_path / 'metadata-mcmc.fits'
 
-    # ------------------------------------------------------------------------
-    # Data loading:
-
-    def dump_cache(self):
-        """Purge any cached data tables"""
-        self._cache = {}
-
+    # ------------
+    # Data loading
+    #
     @property
-    def allstar(self):
-        if 'allstar' not in self._cache:
-            (self._cache['allstar'],
-             self._cache['allvisit']) = self.load_alldata()
-        return self._cache['allstar']
+    def data(self, **kwargs):
+        if 'data' not in self._cache:
+            self._cache['data'] = at.Table.read(
+                self.input_data_file,
+                format=self.input_data_format)
 
-    @property
-    def allvisit(self):
-        if 'allvisit' not in self._cache:
-            (self._cache['allstar'],
-             self._cache['allvisit']) = self.load_alldata()
-        return self._cache['allvisit']
+        return self._cache['data']
 
-    def load_alldata(self):
-        allstar = fits.getdata(self.allstar_filename)
-        allvisit = fits.getdata(self.allvisit_filename)
-        allstar, allvisit = filter_alldata(allstar, allvisit,
-                                           min_nvisits=self.min_nvisits)
-
-        if self._visit_err_tbl is not None:
-            allvisit = at.join(
-                at.Table(allvisit),
-                at.Table(self._visit_err_tbl),
-                # keys='VISITID', # TODO - HACK FOR DR17 alpha!
-                keys=('PLATE', 'MJD', 'FIBERID'))
-
-            # TODO - HACK FOR DR17 alpha!
-            # allvisit = at.unique(allvisit, keys='VISITID')
-            allvisit = at.unique(allvisit, keys=('PLATE', 'MJD', 'FIBERID'))
-
-        return allstar, allvisit
-
-    def get_star_data(self, apogee_id):
-        visits = self.allvisit[self.allvisit['APOGEE_ID'] == apogee_id]
-        if self._visit_err_tbl is not None:
-            err_column = self.visit_error_colname
-        else:
-            err_column = 'VRELERR'
-        return get_rvdata(visits, err_column=err_column)
+    def get_source_data(self, source_id):
+        visits = self.data[self.data[self.source_id_colname] == source_id]
+        t = Time(visits[self.time_colname].astype('f8'),
+                 format=self.time_format,
+                 scale=self.time_scale)
+        rv = visits[self.rv_colname].astype('f8') * u.km/u.s
+        rv_err = visits[self.rv_error_colname].astype('f8') * u.km/u.s
+        return RVData(t=t, rv=rv, rv_err=rv_err)
 
     def get_prior(self, which=None):
         spec = iu.spec_from_file_location("prior", self.prior_file)
@@ -193,7 +165,9 @@ class Config:
         else:
             return user_prior.prior
 
+    # ---------------
     # Special methods
+    #
     def __getstate__(self):
         """Ensure that the cache does not get pickled with the object"""
         state = {k: v for k, v in self.__dict__.items() if 'cache' not in k}
