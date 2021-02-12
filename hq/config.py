@@ -65,9 +65,6 @@ class Config:
             default = field.default
             if field.name == 'cache_path':
                 default = filename.parent
-                logger.debug("The cache path was not explicitly specified, so "
-                             "using the config file path as the cache path: "
-                             f"{str(default)}")
 
             val = vals.get(field.name, None)
             if val is None:
@@ -78,6 +75,11 @@ class Config:
                 val = pathlib.Path(val)
 
             kw[field.name] = val
+
+        if kw['cache_path'] == filename.parent:
+            logger.debug("The cache path was not explicitly specified, so "
+                         "using the config file path as the cache path: "
+                         f"{str(kw['cache_path'])}")
 
         # Specialized defaults
         if kw['prior_cache_file'] is None:

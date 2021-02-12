@@ -143,7 +143,6 @@ def run_thejoker(run_path, pool, overwrite=False, seed=None, limit=None):
 
     # Make directory for temp. files, one per worker:
     tmpdir = c.cache_path / 'thejoker-tmp'
-    print('yo fuck', tmpdir)
     if tmpdir.exists():
         logger.warning(f"Stale temp. file directory found at {str(tmpdir)}: "
                        "combining files first...")
