@@ -1,19 +1,16 @@
-A pipeline for running The Joker on APOGEE data
------------------------------------------------
+A pipeline tool for running The Joker on large datasets
+=======================================================
 
-.. image:: http://img.shields.io/badge/powered%20by-AstroPy-orange.svg?style=flat
-    :target: http://www.astropy.org
-    :alt: Powered by Astropy Badge
-
-
-License
--------
-
-This project is Copyright (c) Adrian Price-Whelan and licensed under the terms
-of the MIT license. This package is based upon the `Astropy package
-template <https://github.com/astropy/package-template>`_ which is licensed under
-the BSD 3-clause license.
-
+`The Joker <https://github.com/adrn/thejoker>`_ is a custom Monte Carlo sampler
+for generating posterior samplings over Keplerian orbital parameters for
+two-body systems. This package provides a pipeline for running The Joker on
+large datasets of homogenous radial velocity data. Early versions of this tool
+were used to analyze data from the `APOGEE surveys
+<https://www.sdss.org/surveys/apogee-2/>`_, leading to the discovery of many
+thousands of binary star systems (`Price-Whelan et al. 2018
+<https://ui.adsabs.harvard.edu/abs/2018AJ....156...18P/abstract>`_,
+`Price-Whelan et al. 2020
+<https://ui.adsabs.harvard.edu/abs/2020ApJ...895....2P/abstract>`_).
 
 Pipeline order
 --------------
@@ -34,20 +31,10 @@ Pipeline order
 * Combine the metadata files: `hq combine_metadata`
 
 
-Testing
+License
 -------
 
-Old / out of date...
-
-* `python init_run.py --name hqtest`
-* `cp ../hq/pkgdata/_test_config.yml $HQ_CACHE_PATH/hqtest/config.yml`
-* `cp ../hq/pkgdata/_test_prior.py $HQ_CACHE_PATH/hqtest/prior.py`
-* `python make_prior_cache.py --name hqtest`
-* `python make_tasks.py --name hqtest -o`
-* `mpirun -n 4 python run_apogee.py --name hqtest -o --mpi -v`
-* `python run_fit_constant.py --name hqtest -o`
-* `python analyze_joker_samplings.py --name hqtest -o -v`
-* `python run_continue_mcmc.py --name hqtest -o -v` (to get the number of rows)
-* `python run_continue_mcmc.py --name hqtest --num 0 -o -v`
-* `python analyze_mcmc_samplings.py --name hqtest -o -v`
-* `python run_null_control.py --name hqtest -v`
+This project is Copyright (c) Adrian Price-Whelan and licensed under the terms
+of the MIT license. This package is based upon the `Astropy package template
+<https://github.com/astropy/package-template>`_ which is licensed under the BSD
+3-clause license.
