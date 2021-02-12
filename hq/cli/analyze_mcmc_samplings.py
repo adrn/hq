@@ -55,7 +55,8 @@ def worker(task):
         # HACK:
         samples['ln_likelihood'] = trace['logp'] - samples['ln_prior']
 
-        row = compute_metadata(c, samples, data)
+        row = compute_metadata(c, samples, data, MAP_err=True)
+        row[c.source_id_colname] = source_id
 
         row['joker_completed'] = False
         row['mcmc_completed'] = True

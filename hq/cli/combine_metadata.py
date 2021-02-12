@@ -1,7 +1,3 @@
-# Standard library
-import os
-import sys
-
 # Third-party
 import numpy as np
 import theano
@@ -16,18 +12,18 @@ from hq.config import Config
 from hq.log import logger
 
 
-def main(run_name, overwrite=False):
-    c = Config.from_run_name(run_name)
+def combine_metadata(run_path, overwrite=False):
+    c = Config(run_path / 'config.yml')
 
-    if os.path.exists(c.metadata_path) and not overwrite:
-        logger.info(f"metadata file already exists {c.metadata_path}")
+    if c.metadata_path.exists() and not overwrite:
+        logger.info(f"metadata file already exists {str(c.metadata_path)}")
         return
 
     meta = Table.read(c.metadata_joker_path)
     mcmc_meta = Table.read(c.metadata_mcmc_path)
 
     final_colnames = [
-        'APOGEE_ID',
+        c.source_id_colname,
         'n_visits',
         'MAP_P',
         'MAP_P_err',
@@ -59,11 +55,9 @@ def main(run_name, overwrite=False):
         'mcmc_success',
         'gelman_rubin_max',
         'constant_ln_likelihood',
-        'robust_constant_ln_likelihood',
-        'constant_ln_evidence',
-        'kepler_ln_evidence']
+        'robust_constant_ln_likelihood']
 
-    master = join(meta, mcmc_meta, keys='APOGEE_ID', join_type='left',
+    master = join(meta, mcmc_meta, keys=c.source_id_colname, join_type='left',
                   uniq_col_name="{table_name}{col_name}",
                   table_names=["", "mcmc_"])
 
@@ -73,7 +67,7 @@ def main(run_name, overwrite=False):
         master['joker_completed'] = master['joker_completed'].filled(False)
 
     for colname in mcmc_meta.colnames:
-        if colname == 'APOGEE_ID':
+        if colname == c.source_id_colname:
             continue
 
         mcmc_colname = f'mcmc_{colname}'
@@ -81,7 +75,8 @@ def main(run_name, overwrite=False):
             mcmc_colname = colname
 
         print(f"Filling {colname} with {mcmc_colname}")
-        master[colname][master['mcmc_success']] = master[mcmc_colname][master['mcmc_success']]
+        master[colname][master['mcmc_success']] = \
+            master[mcmc_colname][master['mcmc_success']]
 
     master = master[final_colnames]
     master = QTable(master)
@@ -91,17 +86,3 @@ def main(run_name, overwrite=False):
             master[col][~master['mcmc_completed']] = np.nan
 
     master.write(c.metadata_path, overwrite=True)
-
-
-if __name__ == '__main__':
-    from hq.script_helpers import get_parser
-
-    # Define parser object
-    parser = get_parser(description='TODO',
-                        loggers=logger)
-
-    args = parser.parse_args()
-
-    main(run_name=args.run_name, overwrite=args.overwrite)
-
-    sys.exit(0)
