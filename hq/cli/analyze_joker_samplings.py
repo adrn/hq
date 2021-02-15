@@ -121,10 +121,8 @@ def worker(task):
         rows.append(row)
 
     tbl = at.QTable(rows)
-    for k in units:
-        tbl[k] = tbl[k] * units[k]
 
-    return tbl
+    return tbl, units
 
 
 def analyze_joker_samplings(run_path, pool):
@@ -144,11 +142,15 @@ def analyze_joker_samplings(run_path, pool):
     logger.info(f'Done preparing tasks: {len(tasks)} batches in process queue')
 
     sub_tbls = []
-    for tbl in tqdm(pool.map(worker, tasks), total=len(tasks)):
+    for tbl, units in tqdm(pool.map(worker, tasks), total=len(tasks)):
         if tbl is not None:
             sub_tbls.append(tbl)
 
     tbl = at.vstack(sub_tbls)
-    logger.info(f"Unimodal sources: {tbl['unimodal]'].sum()}")
+    for k in units:
+        tbl[k] = tbl[k] * units[k]
+
+    logger.log(100,
+               f"Unimodal sources: {tbl['unimodal]'].sum()}")
 
     tbl.write(c.metadata_joker_file, overwrite=True)
