@@ -54,10 +54,15 @@ def worker(task):
 
     model = get_robust_constant_model()
 
+    all_data = {}
+    with h5py.File(c.tasks_file, 'r') as tasks_f:
+        for source_id in source_ids:
+            data = tj.RVData.from_timeseries(tasks_f[source_id])
+            all_data[source_id] = data
+
     rows = []
     for source_id in source_ids:
-        with h5py.File(c.tasks_file, 'r') as tasks_f:
-            data = tj.RVData.from_timeseries(tasks_f[source_id])
+        data = all_data[source_id]
 
         rv = data.rv.to_value(u.km/u.s).astype('f8')
         rv_err = data.rv_err.to_value(u.km/u.s).astype('f8')
