@@ -52,11 +52,17 @@ def compute_metadata(c, samples, data, MAP_err=False):
         row['unimodal'] = False
 
     row['baseline'] = (data.t.mjd.max() - data.t.mjd.min()) * u.day
-    row['max_phase_gap'] = max_phase_gap(MAP_sample, data)
-    row['phase_coverage'] = phase_coverage(MAP_sample, data)
-    row['periods_spanned'] = periods_spanned(MAP_sample, data)
-    row['phase_coverage_per_period'] = phase_coverage_per_period(
-        MAP_sample, data)
+    try:
+        row['max_phase_gap'] = max_phase_gap(MAP_sample, data)
+        row['phase_coverage'] = phase_coverage(MAP_sample, data)
+        row['periods_spanned'] = periods_spanned(MAP_sample, data)
+        row['phase_coverage_per_period'] = phase_coverage_per_period(
+            MAP_sample, data)
+    except Exception:
+        row['max_phase_gap'] = np.nan
+        row['phase_coverage'] = np.nan
+        row['periods_spanned'] = np.nan
+        row['phase_coverage_per_period'] = np.nan
 
     # Use the max marginal likelihood sample
     lls = samples.ln_unmarginalized_likelihood(data)
