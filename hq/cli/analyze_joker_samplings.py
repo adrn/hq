@@ -151,6 +151,6 @@ def analyze_joker_samplings(run_path, pool):
         tbl[k] = tbl[k] * units[k]
 
     logger.log(100,
-               f"Unimodal sources: {tbl['unimodal]'].sum()}")
+               f"Unimodal sources: {tbl['unimodal'].sum()}")
 
     tbl.write(c.metadata_joker_file, overwrite=True)
