@@ -77,23 +77,33 @@ def worker(task):
     logger.debug(
         f"Worker {worker_id}: {len(source_ids)} stars left to process")
 
-    rows = []
-    units = None
-    for source_id in source_ids:
-        with h5py.File(c.tasks_file, 'r') as tasks_f:
+    all_data = {}
+    with h5py.File(c.tasks_file, 'r') as tasks_f:
+        for source_id in source_ids:
             data = tj.RVData.from_timeseries(tasks_f[source_id])
+            all_data[source_id] = data
 
-        with h5py.File(c.joker_results_file, 'r') as results_f:
+    all_samples = {}
+    with h5py.File(c.joker_results_file, 'r') as results_f:
+        for source_id in source_ids:
             if source_id not in results_f:
                 logger.warning(f"No samples for: {source_id}")
-                return None, None
+                continue
 
             # Load samples from The Joker and probabilities
             samples = tj.JokerSamples.read(results_f[source_id])
 
-        if len(samples) < 1:
-            logger.warning(f"No samples for: {source_id}")
-            return None, None
+            if len(samples) < 1:
+                logger.warning(f"No samples for: {source_id}")
+                continue
+
+            all_samples[source_id] = samples
+
+    rows = []
+    units = None
+    for source_id in all_samples:
+        data = all_data[source_id]
+        samples = all_samples[source_id]
 
         row = compute_metadata(c, samples, data)
         row[c.source_id_colname] = source_id
@@ -130,7 +140,7 @@ def analyze_joker_samplings(run_path, pool):
     source_ids = np.unique(c.data[c.source_id_colname])
     tasks = batch_tasks(len(source_ids), pool.size, arr=source_ids, args=(c, ))
 
-    logger.info(f'Done preparing tasks: {len(tasks)} stars in process queue')
+    logger.info(f'Done preparing tasks: {len(tasks)} batches in process queue')
 
     sub_tbls = []
     for tbl in tqdm(pool.map(worker, tasks), total=len(tasks)):
