@@ -65,9 +65,8 @@ def compute_metadata(c, samples, data, MAP_err=False):
         row['phase_coverage_per_period'] = np.nan
 
     # Use the max marginal likelihood sample
-    # TODO: temporary hack - disabled this
-    # lls = samples.ln_unmarginalized_likelihood(data)
-    # row['max_unmarginalized_ln_likelihood'] = lls.max()
+    lls = samples.ln_unmarginalized_likelihood(data)
+    row['max_unmarginalized_ln_likelihood'] = lls.max()
 
     return row
 
