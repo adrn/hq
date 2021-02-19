@@ -21,6 +21,7 @@ def combine_metadata(run_path, overwrite=False):
 
     meta = at.Table.read(c.metadata_joker_file)
     mcmc_meta = at.Table.read(c.metadata_mcmc_file)
+    constant = at.Table.read(c.constant_results_file)
 
     final_colnames = [
         c.source_id_colname,
@@ -57,10 +58,12 @@ def combine_metadata(run_path, overwrite=False):
         'constant_ln_likelihood',
         'robust_constant_ln_likelihood']
 
+    meta = at.join(meta, constant, keys=c.source_id_colname, join_type='left')
     master = at.join(meta, mcmc_meta, keys=c.source_id_colname,
                      join_type='left',
                      uniq_col_name="{table_name}{col_name}",
                      table_names=["", "mcmc_"])
+    master = at.unique(master, keys=c.source_id_colname)
 
     master['mcmc_completed'] = master['mcmc_completed'].filled(False)
     master['mcmc_success'] = master['mcmc_success'].filled(False)
