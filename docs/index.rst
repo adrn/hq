@@ -76,7 +76,7 @@ Example pipeline
 
     hq analyze_joker
 
-* TODO: HQ_THEANO_PATH=/tmp/theano_cache/
+* TODO: HQ_THEANO_PATH=/tmp/theano_cache
 
 * **Run standard MCMC on the unimodal samplings**: TODO::
 
