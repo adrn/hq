@@ -18,8 +18,8 @@ theano.config.cxx = ""
 import h5py
 import numpy as np
 import thejoker as tj
-from thejoker.multiproc_helpers import batch_tasks
 from thejoker.utils import read_batch
+from schwimmbad.utils import batch_tasks
 
 # Project
 from hq.log import logger
@@ -180,10 +180,11 @@ def run_thejoker(run_path, pool, overwrite=False, seed=None, limit=None):
 
     logger.debug("Preparing tasks...")
     if len(source_ids) > 10 * pool.size:
-        n_tasks = min(16 * pool.size, len(source_ids))
+        n_batches = min(16 * pool.size, len(source_ids))
     else:
-        n_tasks = pool.size
-    tasks = batch_tasks(len(source_ids), n_tasks, arr=source_ids,
+        n_batches = pool.size
+
+    tasks = batch_tasks(n_batches, arr=source_ids,
                         args=(c, prior, tmpdir, rnd))
 
     logger.info(f'Done preparing tasks: split into {len(tasks)} task chunks')
