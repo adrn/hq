@@ -27,7 +27,8 @@ from hq.config import Config
 
 
 def worker(task):
-    source_ids, worker_id, c, prior, tmpdir, seed = task
+    worker_idx, source_ids, c, prior, tmpdir, seed = task
+    worker_id = worker_idx[0]
 
     # This worker's results:
     results_filename = os.path.join(tmpdir, f'worker-{worker_id}.hdf5')
