@@ -27,12 +27,12 @@ from hq.config import Config
 
 
 def worker(task):
-    source_ids, worker_id, c, prior, tmpdir, global_rnd = task
+    source_ids, worker_id, c, prior, tmpdir, seed = task
 
     # This worker's results:
     results_filename = os.path.join(tmpdir, f'worker-{worker_id}.hdf5')
 
-    rnd = global_rnd.seed(worker_id)
+    rnd = np.random.default_rng(seed)
     logger.log(1, f"Worker {worker_id}: Creating TheJoker instance with {rnd}")
     prior = c.get_prior()
     joker = tj.TheJoker(prior, random_state=rnd)
@@ -159,8 +159,6 @@ def run_thejoker(run_path, pool, overwrite=False, seed=None, limit=None):
     logger.debug("Loading data...")
     data = c.data[~np.isin(c.data[c.source_id_colname], done_source_ids)]
 
-    # Create TheJoker sampler instance with the specified random seed and pool
-    rnd = np.random.RandomState(seed=seed)
     logger.debug(f"Processing pool has size = {pool.size}")
 
     source_ids = np.unique(data[c.source_id_colname])
@@ -185,7 +183,11 @@ def run_thejoker(run_path, pool, overwrite=False, seed=None, limit=None):
         n_batches = pool.size
 
     tasks = batch_tasks(n_batches, arr=source_ids,
-                        args=(c, prior, tmpdir, rnd))
+                        args=(c, prior, tmpdir))
+
+    seedseq = np.random.SeedSequence(seed)
+    seeds = seedseq.spawn(len(tasks))
+    tasks = [tuple(t) + (s,) for t, s in zip(tasks, seeds)]
 
     logger.info(f'Done preparing tasks: split into {len(tasks)} task chunks')
     for r in pool.map(worker, tasks, callback=callback):
