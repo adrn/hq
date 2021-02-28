@@ -81,6 +81,8 @@ def worker(task):
         init_s = np.sqrt(np.sum((data.rv - np.mean(data.rv))**2 -
                                 data.rv_err**2) / len(data))
         init_lns = np.log(init_s.value)
+        if np.isnan(init_lns):
+            init_lns = -6
 
         # Find the MAP of the robust constant model:
         try:
