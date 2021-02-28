@@ -61,9 +61,6 @@ def worker(task):
 
     logger.debug(f"Worker {worker_id} running {len(source_ids)} stars")
 
-    const_model = get_robust_constant_model()
-    linear_model = get_robust_linear_model()
-
     all_data = {}
     with h5py.File(c.tasks_file, 'r') as tasks_f:
         for source_id in source_ids:
@@ -78,6 +75,8 @@ def worker(task):
         rv = data.rv.to_value(u.km/u.s).astype('f8')
         rv_err = data.rv_err.to_value(u.km/u.s).astype('f8')
         data_dict = {'t': dt, 'rv': rv, 'rv_err': rv_err}
+        const_model = get_robust_constant_model(data_dict)
+        linear_model = get_robust_linear_model(data_dict)
 
         init_s = np.sqrt(np.sum((data.rv - np.mean(data.rv))**2 -
                                 data.rv_err**2) / len(data))
