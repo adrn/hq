@@ -56,9 +56,17 @@ def combine_metadata(run_path, overwrite=False):
         'mcmc_success',
         'gelman_rubin_max',
         'constant_ln_likelihood',
-        'robust_constant_ln_likelihood']
+        'robust_constant_ln_likelihood',
+        'robust_constant_mean',
+        'robust_constant_scatter',
+        'robust_constant_success',
+        'robust_linear_ln_likelihood',
+        'robust_linear_a',
+        'robust_linear_b',
+        'robust_linear_scatter',
+        'robust_linear_success'
+    ]
 
-    meta = at.join(meta, constant, keys=c.source_id_colname, join_type='left')
     master = at.join(meta, mcmc_meta, keys=c.source_id_colname,
                      join_type='left',
                      uniq_col_name="{table_name}{col_name}",
@@ -82,7 +90,6 @@ def combine_metadata(run_path, overwrite=False):
         master[colname][master['mcmc_success']] = \
             master[mcmc_colname][master['mcmc_success']]
 
-    master = master[final_colnames]
     master = at.QTable(master)
 
     for col in master.colnames:
@@ -90,8 +97,8 @@ def combine_metadata(run_path, overwrite=False):
             master[col][~master['mcmc_completed']] = np.nan
 
     # load results from running run_fit_constant.py:
-    constant_tbl = at.QTable.read(c.constant_results_file)
-    master = at.join(master, constant_tbl, keys=c.source_id_colname)
+    master = at.join(master, constant, keys=c.source_id_colname,
+                     join_type='left')
     master = at.unique(master, keys=c.source_id_colname)
 
-    master.write(c.metadata_file, overwrite=True)
+    master[final_colnames].write(c.metadata_file, overwrite=True)
