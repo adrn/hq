@@ -162,6 +162,19 @@ class Config:
         rv_err = visits[self.rv_error_colname].astype('f8') * u.km/u.s
         return RVData(t=t, rv=rv, rv_err=rv_err)
 
+    def get_data_samples(self, source_id):
+        import h5py
+        import thejoker as tj
+
+        data = self.get_source_data(source_id)
+
+        with h5py.File(self.joker_results_file, 'r') as results_f:
+            samples = tj.JokerSamples.read(results_f[source_id])
+
+        MAP_sample = samples[samples['ln_likelihood'].argmax()]
+
+        return data, samples, MAP_sample
+
     def get_prior(self, which=None):
         spec = iu.spec_from_file_location("prior", self.prior_file)
         user_prior = iu.module_from_spec(spec)
