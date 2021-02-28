@@ -93,6 +93,8 @@ def worker(task):
                            'lns': init_lns},
                     method='L-BFGS-B',
                     progress=False, verbose=False, return_info=True)
+            if not const_info.success:
+                raise RuntimeError("failed to fit")
         except Exception as e:
             logger.error(f"FAILED: robust constant for source {source_id}\n"
                          f"{const_info}\n{e}")
@@ -107,6 +109,8 @@ def worker(task):
                            'lns': init_lns},
                     method='L-BFGS-B',
                     progress=False, verbose=False, return_info=True)
+            if not lin_info.success:
+                raise RuntimeError("failed to fit")
         except Exception as e:
             logger.error(f"FAILED: robust linear for source {source_id}\n"
                          f"{lin_info}\n{e}")
