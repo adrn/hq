@@ -75,6 +75,7 @@ def worker(task):
         rv = data.rv.to_value(u.km/u.s).astype('f8')
         rv_err = data.rv_err.to_value(u.km/u.s).astype('f8')
         data_dict = {'t': dt, 'rv': rv, 'rv_err': rv_err}
+        assert all([np.isfinite(x).all() for x in data_dict.values()])
         const_model = get_robust_constant_model(data_dict)
         linear_model = get_robust_linear_model(data_dict)
 
@@ -87,19 +88,19 @@ def worker(task):
         # Find the MAP of the robust constant model:
         try:
             with const_model:
-                const_map_p, info = pmx.optimize(
+                const_map_p, const_info = pmx.optimize(
                     start={'mu': np.mean(rv),
                            'lns': init_lns},
                     method='L-BFGS-B',
                     progress=False, verbose=False, return_info=True)
         except Exception as e:
-            logger.error(f"Const FAILED for source: {source_id}")
-            print(e)
+            logger.error(f"FAILED: robust constant for source {source_id}\n"
+                         f"{const_info}\n{e}")
             const_map_p = None
 
         try:
             with linear_model:
-                linear_map_p, info = pmx.optimize(
+                linear_map_p, lin_info = pmx.optimize(
                     start={'a': np.mean(rv),
                            'b': np.polyfit(data_dict['t'], data_dict['rv'],
                                            deg=1)[0],
@@ -107,8 +108,8 @@ def worker(task):
                     method='L-BFGS-B',
                     progress=False, verbose=False, return_info=True)
         except Exception as e:
-            logger.error(f"Linear FAILED for source: {source_id}")
-            print(e)
+            logger.error(f"FAILED: robust linear for source {source_id}\n"
+                         f"{lin_info}\n{e}")
             linear_map_p = None
 
         # Non-robust / standard constant log-likelihood
