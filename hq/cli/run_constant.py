@@ -82,39 +82,50 @@ def worker(task):
         init_s = np.sqrt(np.sum((data.rv - np.mean(data.rv))**2 -
                                 data.rv_err**2) / len(data))
         init_lns = np.log(init_s.value)
-        if np.isnan(init_lns):
+        if not np.isfinite(init_lns):
             init_lns = -6
 
-        # Find the MAP of the robust constant model:
-        try:
-            with const_model:
-                const_map_p, const_info = pmx.optimize(
-                    start={'mu': np.mean(rv),
-                           'lns': init_lns},
-                    method='L-BFGS-B',
-                    progress=False, verbose=False, return_info=True)
-            if not const_info.success:
-                raise RuntimeError("failed to fit")
-        except Exception as e:
-            logger.error(f"FAILED: robust constant for source {source_id}\n"
-                         f"{const_info}\n{e}")
-            const_map_p = None
+        init_b = np.polyfit(data_dict['t'], data_dict['rv'], deg=1)[0]
+        if np.abs(init_b) > 500:
+            init_b = 0.
 
-        try:
-            with linear_model:
-                linear_map_p, lin_info = pmx.optimize(
-                    start={'a': np.mean(rv),
-                           'b': np.polyfit(data_dict['t'], data_dict['rv'],
-                                           deg=1)[0],
-                           'lns': init_lns},
-                    method='L-BFGS-B',
-                    progress=False, verbose=False, return_info=True)
-            if not lin_info.success:
-                raise RuntimeError("failed to fit")
-        except Exception as e:
-            logger.error(f"FAILED: robust linear for source {source_id}\n"
-                         f"{lin_info}\n{e}")
-            linear_map_p = None
+        # Find the MAP of the robust constant model:
+        for i in range(4):  # HACK: try a few iterations...
+            try:
+                with const_model:
+                    const_map_p, const_info = pmx.optimize(
+                        start={'mu': np.mean(rv) + np.random.normal(0, 1e-2),
+                               'lns': init_lns},
+                        method='L-BFGS-B',
+                        progress=False, verbose=False, return_info=True)
+                if not const_info.success:
+                    raise RuntimeError("failed to fit")
+
+                break
+
+            except Exception as e:
+                logger.error(f"FAILED: robust constant for source {source_id}\n"
+                             f"{const_info}\n{e}")
+                const_map_p = None
+
+        for i in range(4):  # HACK: try a few iterations...
+            try:
+                with linear_model:
+                    linear_map_p, lin_info = pmx.optimize(
+                        start={'a': np.mean(rv),
+                               'b': init_b,
+                               'lns': init_lns},
+                        method='L-BFGS-B',
+                        progress=False, verbose=False, return_info=True)
+                if not lin_info.success:
+                    raise RuntimeError("failed to fit")
+
+                break
+
+            except Exception as e:
+                logger.error(f"FAILED: robust linear for source {source_id}\n"
+                             f"{lin_info}\n{e}")
+                linear_map_p = None
 
         # Non-robust / standard constant log-likelihood
         eval_mu = np.sum(rv / rv_err**2) / np.sum(1. / rv_err**2)
