@@ -98,7 +98,7 @@ def worker(task):
                                'lns': init_lns},
                         method='L-BFGS-B',
                         progress=False, verbose=False, return_info=True)
-                if not const_info.success:
+                if not const_info.success and np.any(np.isnan(const_info.x)):
                     raise RuntimeError("failed to fit")
 
                 break
@@ -117,7 +117,7 @@ def worker(task):
                                'lns': init_lns},
                         method='L-BFGS-B',
                         progress=False, verbose=False, return_info=True)
-                if not lin_info.success:
+                if not lin_info.success and np.any(np.isnan(lin_info.x)):
                     raise RuntimeError("failed to fit")
 
                 break
