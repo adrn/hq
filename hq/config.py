@@ -42,6 +42,11 @@ class Config:
     randomize_prior_order: bool = False
     init_batch_size: int = None
 
+    # Pipeline choices
+    rerun_logP_ptp_threshold: float = 1.
+    rerun_P_factor: float = 2.5
+    rerun_n_prior_samples: int = 10_000_000
+
     # MCMC
     tune: int = 1000
     draws: int = 1000
