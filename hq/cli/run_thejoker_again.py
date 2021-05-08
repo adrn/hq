@@ -72,7 +72,7 @@ def callback(result):
         result["log_prefix"] + "Finished and writing results to results file"
     )
 
-    with h5py.File(conf.results_filename, "a") as results_f:
+    with h5py.File(conf.joker_results_file, "a") as results_f:
         if result["source_id"] in results_f:
             del results_f[result["source_id"]]
         else:
