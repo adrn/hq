@@ -182,14 +182,14 @@ class Config:
 
         return data, samples, MAP_sample
 
-    def get_prior(self, which=None):
+    def get_prior(self, which=None, **kwargs):
         spec = iu.spec_from_file_location("prior", self.prior_file)
         user_prior = iu.module_from_spec(spec)
         spec.loader.exec_module(user_prior)
         if which == 'mcmc':
-            return user_prior.prior_mcmc
+            return user_prior.get_prior_mcmc(**kwargs)
         else:
-            return user_prior.prior
+            return user_prior.get_prior(**kwargs)
 
     # ---------------
     # Special methods
