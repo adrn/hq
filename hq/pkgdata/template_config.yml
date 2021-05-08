@@ -66,6 +66,16 @@ randomize_prior_order: True
 ## (defaults to min(250_000, n_prior_samples))
 init_batch_size: null
 
+## Parameters for re-running The Joker after the initial run, for stubborn data
+## The largest peak-to-peak (max(log10(P)) - max(log10(P))) spread in period
+## samples to allow in the rerun sample:
+rerun_logP_ptp_threshold: 1.
+
+## The factor to use in setting the rerun period range for unimodal samplings:
+rerun_P_factor: 2.5
+
+## The number of prior samples to generate in each rerun:
+rerun_n_prior_samples: 10_000_000
 
 ##############################################################################
 ## Sampling parameters for MCMC:
