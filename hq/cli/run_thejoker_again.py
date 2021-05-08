@@ -147,7 +147,8 @@ def rerun_thejoker(run_path, pool, seed=None):
     # Deterministic random number seeds:
     seedseq = np.random.SeedSequence(seed)
     seeds = seedseq.spawn(len(tasks))
-    tasks = [t.update({'seed': s}) for t, s in zip(tasks, seeds)]
+    for t, s in zip(tasks, seeds):
+        t['seed'] = s
 
     logger.info(f"Done preparing tasks: {len(tasks)} tasks")
     for r in pool.map(worker, tasks, callback=callback):
