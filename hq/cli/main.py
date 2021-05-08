@@ -186,6 +186,40 @@ class CLI:
 
         sys.exit(0)
 
+    def rerun_thejoker(self):
+        """
+        Re-run The Joker on samplings that were incomplete, but with restricted
+        period ranges to make the sampling more efficient. This should be run
+        after run_thejoker and analyzer_joker_samplings, but before run_mcmc.
+        """
+        from thejoker.logging import logger as joker_logger
+        from .run_thejoker_again import rerun_thejoker
+
+        parser = get_parser(
+            description=(
+                "Re-run The Joker on samplings that were incomplete in the "
+                "first batch run of The Joker."),
+            loggers=[logger, joker_logger])
+        # HACK
+        parser.usage = 'hq rerun_thejoker' + parser.format_usage()[9:]
+
+        parser.add_argument("-s", "--seed", dest="seed", default=None,
+                            type=int, help="Random number seed")
+
+        args = parser.parse_args(sys.argv[2:])
+
+        if args.seed is None:
+            args.seed = np.random.randint(2**32 - 1)
+            logger.log(
+                1, f"No random seed specified, so using seed: {args.seed}")
+
+        with threadpool_limits(limits=1, user_api='blas'):
+            with args.Pool(**args.Pool_kwargs) as pool:
+                rerun_thejoker(run_path=args.run_path, pool=pool,
+                               seed=args.seed)
+
+        sys.exit(0)
+
     def run_mcmc(self):
         """Run MCMC (using pymc3's NUTS sampler) for the unimodal samplings"""
         parser = get_parser(
