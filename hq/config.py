@@ -177,13 +177,14 @@ class Config:
             with h5py.File(self.joker_results_file, 'r') as results_f:
                 samples = tj.JokerSamples.read(results_f[source_id])
 
-            MAP_sample = samples[samples['ln_likelihood'].argmax()]
-
         else:
             with h5py.File(self.mcmc_results_file, 'r') as results_f:
                 samples = tj.JokerSamples.read(results_f[source_id])
 
+        try:
             MAP_sample = samples[samples['ln_likelihood'].argmax()]
+        except KeyError:
+            MAP_sample = None
 
         return data, samples, MAP_sample
 
