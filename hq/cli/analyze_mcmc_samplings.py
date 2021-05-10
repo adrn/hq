@@ -14,7 +14,7 @@ import numpy as np
 from tqdm import tqdm
 import thejoker as tj
 from thejoker.multiproc_helpers import batch_tasks
-import pymc3 as pm
+from thejoker.samples_helpers import inferencedata_to_samples
 import arviz as az
 
 # Project
@@ -36,23 +36,17 @@ def worker(task):
         with h5py.File(c.tasks_file, 'r') as tasks_f:
             data = tj.RVData.from_timeseries(tasks_f[source_id])
 
-        this_mcmc_path = os.path.join(c.cache_path, 'mcmc', source_id)
-        if not os.path.exists(this_mcmc_path):
+        this_mcmc_path = c.cache_path / 'mcmc' / str(source_id) / 'samples.nc'
+        if not this_mcmc_path.exists():
             logger.debug(f"{source_id}: MCMC path does not exist at "
                          f"{this_mcmc_path}")
 
-        joker = tj.TheJoker(prior)
-        with prior.model:
-            trace = pm.load_trace(this_mcmc_path)
+        trace = az.from_netcdf(this_mcmc_path)
 
-        for i in trace.chains:
-            trace._straces[i].varnames.append('ln_prior')
-            trace._straces[i].varnames.append('logp')
-
-        samples = joker.trace_to_samples(trace, data)
-        samples['ln_prior'] = trace['ln_prior']
-        # HACK:
-        samples['ln_likelihood'] = trace['logp'] - samples['ln_prior']
+        samples = inferencedata_to_samples(prior, trace, data)
+        logp = trace.posterior.logp.values.ravel()
+        samples['ln_prior'] = trace.posterior.ln_prior.values.ravel()
+        samples['ln_likelihood'] = logp - samples['ln_prior']
 
         row = compute_metadata(c, samples, data, MAP_err=True)
         row[c.source_id_colname] = source_id

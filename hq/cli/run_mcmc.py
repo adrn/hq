@@ -3,9 +3,10 @@ import time
 
 # Third-party
 import astropy.table as at
+import numpy as np
 import pymc3 as pm
 import thejoker as tj
-import exoplanet as xo
+import pymc3_ext as pmx
 
 # Project
 from hq.log import logger
@@ -25,7 +26,7 @@ def run_mcmc(run_path, index, overwrite=False):
 
     metadata_row = unimodal_tbl[index]
 
-    prior = c.get_prior('mcmc')
+    prior, model = c.get_prior('mcmc')
 
     mcmc_cache_path = c.cache_path / 'mcmc'
     mcmc_cache_path.mkdir(exist_ok=True)
@@ -50,10 +51,13 @@ def run_mcmc(run_path, index, overwrite=False):
     logger.log(1, f"{source_id}: MAP sample loaded")
 
     # Run MCMC:
-    with joker.prior.model as model:
+    with model:
         logger.log(1, f"{source_id}: Setting up MCMC...")
         mcmc_init = joker.setup_mcmc(data, MAP_sample)
         logger.log(1, f"{source_id}: ...setup complete")
+
+        # HACK:
+        mcmc_init['lnP'] = np.log(mcmc_init.get('P', 1.))
 
         if 'ln_prior' not in model.named_vars:
             ln_prior_var = None
@@ -78,10 +82,11 @@ def run_mcmc(run_path, index, overwrite=False):
             logger.log(1, f"{source_id}: setting up logp in pymc3 model")
 
         logger.debug(f"{source_id}: Starting MCMC sampling")
-        trace = pm.sample(start=mcmc_init, chains=4, cores=1,
-                          step=xo.get_dense_nuts_step(target_accept=0.95),
-                          tune=c.tune, draws=c.draws)
+        trace = pmx.sample(start=mcmc_init, chains=4, cores=1,
+                           tune=c.tune, draws=c.draws,
+                           return_inferencedata=True,
+                           discard_tuned_samples=False)
 
-    pm.save_trace(trace, directory=this_cache_path, overwrite=True)
+    trace.to_netcdf(this_cache_path / 'samples.nc')
     logger.debug(f"{source_id}: Finished MCMC sampling "
                  f"({time.time()-t0:.2f} seconds)")
