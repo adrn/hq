@@ -257,7 +257,8 @@ class CLI:
         logger.info(f"Theano flags set to: {os.environ['THEANO_FLAGS']}")
 
         from .run_mcmc import run_mcmc  # noqa
-        run_mcmc(args.run_path, index=args.index, overwrite=args.overwrite)
+        run_mcmc(args.run_path, index=args.index, overwrite=args.overwrite,
+                 seed=args.index)
 
         sys.exit(0)
 

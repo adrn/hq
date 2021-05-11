@@ -15,7 +15,7 @@ from hq.samples_analysis import extract_MAP_sample
 from hq.config import Config
 
 
-def run_mcmc(run_path, index, overwrite=False):
+def run_mcmc(run_path, index, seed=None, overwrite=False):
     # Load the analyzed joker samplings file, only keep unimodal:
     c = Config(run_path / 'config.yml')
 
@@ -64,7 +64,8 @@ def run_mcmc(run_path, index, overwrite=False):
         logger.debug(f"{source_id}: Starting MCMC sampling")
         trace = pmx.sample(start=mcmc_init, chains=2, cores=1,
                            tune=c.tune, draws=c.draws,
-                           return_inferencedata=True)
+                           return_inferencedata=True,
+                           random_seed=seed)
 
     init_samples = inferencedata_to_samples(fixed_s_prior, trace, data)
     df = trace.posterior.to_dataframe()
@@ -104,7 +105,8 @@ def run_mcmc(run_path, index, overwrite=False):
         trace = pmx.sample(start=mcmc_init, chains=4, cores=1,
                            tune=c.tune, draws=c.draws,
                            return_inferencedata=True,
-                           discard_tuned_samples=False)
+                           discard_tuned_samples=False,
+                           random_seed=seed)
 
     trace.to_netcdf(this_cache_path / 'samples.nc')
     logger.debug(f"{source_id}: Finished MCMC sampling "
