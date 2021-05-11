@@ -172,7 +172,7 @@ def run_thejoker(run_path, pool, overwrite=False, seed=None, limit=None):
 
     # Load the prior:
     logger.debug("Creating JokerPrior instance...")
-    prior = c.get_prior()
+    prior, model = c.get_prior()
 
     tmpdir.mkdir(exist_ok=True)
     atexit.register(tmpdir_combine, tmpdir, c.joker_results_file)
