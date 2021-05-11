@@ -41,8 +41,7 @@ def worker(task):
     rerun_samples = joker.rejection_sample(
         task['data'],
         prior_samples=conf.rerun_n_prior_samples,
-        return_logprobs=True,
-        in_memory=True)
+        return_logprobs=True)
 
     # Ensure only positive K values
     rerun_samples.wrap_K()
