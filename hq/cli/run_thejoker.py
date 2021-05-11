@@ -35,7 +35,7 @@ def worker(task):
 
     rnd = np.random.default_rng(seed)
     logger.log(1, f"Worker {worker_id}: Creating TheJoker instance with {rnd}")
-    prior = c.get_prior()
+    prior, model = c.get_prior()
     joker = tj.TheJoker(prior, random_state=rnd)
     logger.debug(f"Worker {worker_id} on node {socket.gethostname()}: "
                  f"{len(source_ids)} stars left to process")
