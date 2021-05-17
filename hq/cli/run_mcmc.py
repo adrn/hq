@@ -2,9 +2,8 @@
 import time
 
 # Third-party
+import arviz as az
 import astropy.table as at
-import numpy as np
-import pymc3 as pm
 import thejoker as tj
 import pymc3_ext as pmx
 from thejoker.samples_helpers import inferencedata_to_samples
@@ -19,10 +18,10 @@ def run_mcmc(run_path, index, seed=None, overwrite=False):
     # Load the analyzed joker samplings file, only keep unimodal:
     conf = Config(run_path / 'config.yml')
 
-    joker_metadata = at.QTable.read(c.metadata_joker_file)
+    joker_metadata = at.QTable.read(conf.metadata_joker_file)
     unimodal_tbl = joker_metadata[joker_metadata['unimodal']]
 
-    if index > len(unimodal_tbl)-1:
+    if index > len(unimodal_tbl) - 1:
         raise ValueError("Index is larger than the number of unimodal sources")
 
     metadata_row = unimodal_tbl[index]
@@ -43,12 +42,15 @@ def run_mcmc(run_path, index, seed=None, overwrite=False):
         logger.info(f"{source_id} already done!")
         return
 
+    stat_names = ['P', 'K', 'e', 'M0', 'omega', 't_peri', 'v0']
+
     # -------- Initial run ---------
     # Fix the excess variance parameter to the MAP value from running The Joker
     time0 = time.time()
 
     fixed_s_prior, fixed_s_model = conf.get_prior(
         'mcmc',
+        MAP_sample=joker_MAP_sample,
         fixed_s=joker_MAP_sample['s'])
 
     with fixed_s_model:
@@ -58,17 +60,26 @@ def run_mcmc(run_path, index, seed=None, overwrite=False):
                                      custom_func=conf.get_custom_init_mcmc())
 
         init_trace = pmx.sample(
-            start=mcmc_init, chains=2, cores=1,
+            start=mcmc_init, chains=conf.mcmc_chains, cores=1,
             init='adapt_full',
-            tune=conf.tune, draws=1000,  # MAGIC NUMBER
+            tune=conf.mcmc_tune_steps,
+            draws=1000,  # MAGIC NUMBER - TODO: make config?
             return_inferencedata=True,
             discard_tuned_samples=True,
             random_seed=seed,
-            target_accept=conf.target_accept)
+            target_accept=conf.mcmc_target_accept)
 
     init_samples = inferencedata_to_samples(joker.prior, init_trace, data)
     tmp_MAP_sample = init_samples[init_samples['ln_posterior'].argmax()]
     init_trace.to_netcdf(this_cache_path / 'init_samples.nc')
+
+    stat_names.extend([x for x in mcmc_init.keys() if x not in stat_names])
+    summ = az.summary(init_trace.posterior, var_names=stat_names)
+    with open(this_cache_path / 'init-sample-stats.csv') as f:
+        f.write(summ.to_csv())
+
+    if summ.r_hat.max() > conf.mcmc_max_r_hat:
+        pass
 
     # -------- Main run ---------
 
@@ -83,15 +94,19 @@ def run_mcmc(run_path, index, seed=None, overwrite=False):
 
         logger.debug(f"{source_id}: Starting initial (fixed s) MCMC sampling")
         trace = pmx.sample(
-            start=mcmc_init, chains=4, cores=4,
+            start=mcmc_init, chains=conf.mcmc_chains, cores=1,
             init='adapt_full',
-            tune=conf.tune, draws=conf.draws,
+            tune=conf.mcmc_tune_steps,
+            draws=conf.mcmc_draw_steps,
             return_inferencedata=True,
             discard_tuned_samples=False,
-            random_seed=seed)
+            random_seed=seed,
+            target_accept=conf.mcmc_target_accept)
 
-    samples = inferencedata_to_samples(joker.prior, trace, data)
-    mcmc_MAP_sample = samples[samples['ln_posterior'].argmax()]
+    stat_names.extend([x for x in mcmc_init.keys() if x not in stat_names])
+    summ = az.summary(trace.posterior, var_names=stat_names)
+    with open(this_cache_path / 'init-sample-stats.csv') as f:
+        f.write(summ.to_csv())
 
     trace.to_netcdf(samples_file)
     logger.debug(f"{source_id}: Finished MCMC sampling "
