@@ -5,6 +5,8 @@ import exoplanet.units as xu
 from exoplanet.distributions import Angle
 import thejoker as tj
 
+# TODO: update these to use get_prior() and get_prior_mcmc()
+
 # The prior used to run The Joker: please edit below! Any parameters set to None
 # should be changed to real values!
 with pm.Model() as model:
@@ -29,3 +31,8 @@ with pm.Model() as model:
         sigma_v=None,
         pars={'M0': M0, 'omega': omega}
     )
+
+
+def custom_init_mcmc(**kwargs):
+    """TODO: describe this"""
+    pass

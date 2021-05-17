@@ -197,6 +197,12 @@ class Config:
         else:
             return user_prior.get_prior(**kwargs)
 
+    def get_custom_init_mcmc(self):
+        spec = iu.spec_from_file_location("prior", self.prior_file)
+        user_prior = iu.module_from_spec(spec)
+        spec.loader.exec_module(user_prior)
+        return getattr(user_prior, 'custom_init_mcmc', None)
+
     # ---------------
     # Special methods
     #
