@@ -82,8 +82,13 @@ rerun_n_prior_samples: 10_000_000
 ##
 
 ## These parameters are passed directly to pymc3.sample()
-tune: 1000
-draws: 1000
+mcmc_tune_steps: 1000
+mcmc_draw_steps: 1000
+mcmc_chains: 4
+
+## Maximum threshold value of the Gelman-Rubin convergence statistic to consider
+## a sampling "successful"
+mcmc_max_r_hat: 1.2
 
 ## This is the target acceptance ratio used for computing the dense mass matrix:
-target_accept: 0.95
+mcmc_target_accept: 0.95

@@ -48,9 +48,11 @@ class Config:
     rerun_n_prior_samples: int = 10_000_000
 
     # MCMC
-    tune: int = 1000
-    draws: int = 1000
-    target_accept: float = 0.95
+    mcmc_tune_steps: int = 1000
+    mcmc_draw_steps: int = 1000
+    mcmc_chains: int = 4
+    mcmc_target_accept: float = 0.95
+    mcmc_max_r_hat: float = 1.2
 
     def __init__(self, filename):
         self._load_validate_config_values(filename)
