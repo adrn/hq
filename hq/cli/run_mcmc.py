@@ -37,6 +37,8 @@ def run_mcmc(run_path, index, seed=None, overwrite=False):
     logger.log(1, f"{source_id}: MAP sample loaded")
 
     this_cache_path = mcmc_cache_path / source_id
+    this_cache_path.mkdir(exist_ok=True)
+
     samples_file = this_cache_path / 'samples.nc'
     if samples_file.exists() and not overwrite:
         logger.info(f"{source_id} already done!")
@@ -48,6 +50,7 @@ def run_mcmc(run_path, index, seed=None, overwrite=False):
     # Fix the excess variance parameter to the MAP value from running The Joker
     time0 = time.time()
 
+    logger.debug(f"{source_id}: Starting initial sampling in {this_cache_path}")
     fixed_s_prior, fixed_s_model = conf.get_prior(
         'mcmc',
         MAP_sample=joker_MAP_sample,
@@ -71,15 +74,18 @@ def run_mcmc(run_path, index, seed=None, overwrite=False):
 
     init_samples = inferencedata_to_samples(joker.prior, init_trace, data)
     tmp_MAP_sample = init_samples[init_samples['ln_posterior'].argmax()]
-    init_trace.to_netcdf(this_cache_path / 'init_samples.nc')
+    init_trace.to_netcdf(this_cache_path / 'init-samples.nc')
 
     stat_names.extend([x for x in mcmc_init.keys() if x not in stat_names])
     summ = az.summary(init_trace.posterior, var_names=stat_names)
-    with open(this_cache_path / 'init-sample-stats.csv') as f:
+    with open(this_cache_path / 'init-sample-stats.csv', 'w') as f:
         f.write(summ.to_csv())
 
     if summ.r_hat.max() > conf.mcmc_max_r_hat:
-        pass
+        logger.warning(
+            f"{source_id}: Maximum Gelman-Rubin statistic {summ.r_hat.max()} "
+            f"> {conf.mcmc_max_r_hat}, the threshold")
+        return
 
     # -------- Main run ---------
 
@@ -105,7 +111,7 @@ def run_mcmc(run_path, index, seed=None, overwrite=False):
 
     stat_names.extend([x for x in mcmc_init.keys() if x not in stat_names])
     summ = az.summary(trace.posterior, var_names=stat_names)
-    with open(this_cache_path / 'init-sample-stats.csv') as f:
+    with open(this_cache_path / 'sample-stats.csv', 'w') as f:
         f.write(summ.to_csv())
 
     trace.to_netcdf(samples_file)
