@@ -24,45 +24,58 @@ from .analyze_joker_samplings import compute_metadata
 
 
 def worker(task):
-    source_ids, worker_id, c = task
+    source_ids, worker_id, conf = task
 
     logger.debug(f"Worker {worker_id}: {len(source_ids)} stars left to process")
-    prior = c.get_prior()
+    prior, _ = conf.get_prior()
 
     rows = []
     sub_samples = {}
     units = None
     for source_id in source_ids:
-        with h5py.File(c.tasks_file, 'r') as tasks_f:
+        with h5py.File(conf.tasks_file, 'r') as tasks_f:
             data = tj.RVData.from_timeseries(tasks_f[source_id])
 
-        this_mcmc_path = c.cache_path / 'mcmc' / str(source_id) / 'samples.nc'
-        if not this_mcmc_path.exists():
-            logger.debug(f"{source_id}: MCMC path does not exist at "
-                         f"{this_mcmc_path}")
+        source_path = conf.cache_path / 'mcmc' / str(source_id)
+        init_mcmc_file = source_path / 'init-samples.nc'
+        main_mcmc_file = source_path / 'samples.nc'
 
-        trace = az.from_netcdf(this_mcmc_path)
+        if not source_path.exists():
+            logger.warning(
+                f"{source_id}: MCMC path does not exist at {source_path}")
+            continue
+        elif not init_mcmc_file.exists():
+            logger.warning(
+                f"{source_id}: MCMC sample data not found at {init_mcmc_file}")
+            continue
+        elif not main_mcmc_file.exists():
+            logger.debug(
+                f"{source_id}: main MCMC sample data not found at "
+                f"{init_mcmc_file} -- defaulting to init sample data")
+
+        if main_mcmc_file.exists():
+            trace = az.from_netcdf(main_mcmc_file)
+            init_samples = False
+        else:
+            trace = az.from_netcdf(init_mcmc_file)
+            init_samples = True
 
         samples = inferencedata_to_samples(prior, trace, data)
-        logp = trace.posterior.logp.values.ravel()
-        samples['ln_prior'] = trace.posterior.ln_prior.values.ravel()
-        samples['ln_likelihood'] = logp - samples['ln_prior']
 
-        row = compute_metadata(c, samples, data, MAP_err=True)
-        row[c.source_id_colname] = source_id
+        row = compute_metadata(conf, samples, data, MAP_err=True)
+        row[conf.source_id_colname] = source_id
 
         row['joker_completed'] = False
         row['mcmc_completed'] = True
 
         stat_df = az.summary(trace)
         row['gelman_rubin_max'] = stat_df['r_hat'].max()
-        row['mcmc_success'] = row['gelman_rubin_max'] <= 1.1
+        row['mcmc_success'] = row['gelman_rubin_max'] <= conf.mcmc_max_r_hat
 
-        if not row['mcmc_success']:
-            row['max_phase_gap'] = np.nan * u.one
-            row['phase_coverage'] = np.nan * u.one
-            row['periods_spanned'] = np.nan * u.one
-            row['phase_coverage_per_period'] = np.nan * u.one
+        if init_samples:
+            row['mcmc_status'] = 1
+        else:
+            row['mcmc_status'] = 0
 
         if units is None:
             units = dict()
@@ -77,24 +90,24 @@ def worker(task):
         rows.append(row)
 
         # Now write out the requested number of samples:
-        idx = np.random.choice(len(samples), size=c.requested_samples_per_star,
-                               replace=False)
+        idx = np.random.choice(
+            len(samples),
+            size=conf.requested_samples_per_star,
+            replace=False)
         sub_samples[source_id] = samples[idx]
-        sub_samples[source_id]['ln_prior'] = samples['ln_prior'][idx]
-
-        sub_samples[source_id]['ln_likelihood'] = samples['ln_likelihood'][idx]
 
     tbl = Table(rows)
     return {'tbl': tbl, 'samples': sub_samples, 'units': units}
 
 
 def analyze_mcmc_samplings(run_path, pool):
-    c = Config(run_path / 'config.yml')
+    conf = Config(run_path / 'config.yml')
 
-    source_ids = sorted([x for x in os.listdir(c.cache_path / 'mcmc')
+    source_ids = sorted([x for x in os.listdir(conf.cache_path / 'mcmc')
                          if not x.startswith('.')])
 
-    tasks = batch_tasks(len(source_ids), pool.size, arr=source_ids, args=(c, ))
+    tasks = batch_tasks(len(source_ids), pool.size, arr=source_ids,
+                        args=(conf, ))
     logger.info(f'Done preparing tasks: {len(tasks)} stars in process queue')
 
     sub_tbls = []
@@ -109,10 +122,10 @@ def analyze_mcmc_samplings(run_path, pool):
     for k in result['units']:
         tbl[k].unit = result['units'][k]
     tbl = QTable(tbl)
-    tbl.write(c.metadata_mcmc_file, overwrite=True)
+    tbl.write(conf.metadata_mcmc_file, overwrite=True)
 
     # Now write out all of the individual samplings:
-    with h5py.File(c.mcmc_results_file, 'a') as results_f:
+    with h5py.File(conf.mcmc_results_file, 'a') as results_f:
         for source_id, samples in all_samples.items():
             if source_id in results_f:
                 del results_f[source_id]
