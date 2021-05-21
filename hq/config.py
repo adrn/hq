@@ -54,6 +54,9 @@ class Config:
     mcmc_target_accept: float = 0.95
     mcmc_max_r_hat: float = 1.2
 
+    # For expanding the samples into subdirectories:
+    expand_subdir_column: str = None
+
     def __init__(self, filename):
         self._load_validate_config_values(filename)
         self._cache = {}

@@ -294,6 +294,25 @@ class CLI:
         args = parser.parse_args(sys.argv[2:])
         combine_metadata(args.run_path, overwrite=args.overwrite)
 
+    def expand_samples(self):
+        """Re-structure the generated samplings into flat files that contain one
+        source's samples per file."""
+        from .expand_samples import expand_samples
+        parser = get_parser(
+            description=(
+                "TODO"))
+        # HACK
+        parser.usage = 'hq expand_samples' + parser.format_usage()[9:]
+
+        args = parser.parse_args(sys.argv[2:])
+
+        with threadpool_limits(limits=1, user_api='blas'):
+            with args.Pool(**args.Pool_kwargs) as pool:
+                expand_samples(args.run_path, pool=pool,
+                               overwrite=args.overwrite)
+
+        sys.exit(0)
+
 
 # Auto-generate the usage block:
 cmds = []
