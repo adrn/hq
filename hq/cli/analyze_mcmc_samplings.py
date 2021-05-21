@@ -70,12 +70,15 @@ def worker(task):
 
         stat_df = az.summary(trace)
         row['gelman_rubin_max'] = stat_df['r_hat'].max()
-        row['mcmc_success'] = row['gelman_rubin_max'] <= conf.mcmc_max_r_hat
 
+        status_bits = []
         if init_samples:
-            row['mcmc_status'] = 1
-        else:
-            row['mcmc_status'] = 0
+            status_bits.append(1)
+        if row['gelman_rubin_max'] > conf.mcmc_max_r_hat:
+            status_bits.append(2)
+        if len(samples) < conf.requested_samples_per_star:
+            status_bits.append(3)
+        row['mcmc_status'] = np.sum(2 ** np.array(status_bits)).astype(int)
 
         if units is None:
             units = dict()
@@ -92,7 +95,7 @@ def worker(task):
         # Now write out the requested number of samples:
         idx = np.random.choice(
             len(samples),
-            size=conf.requested_samples_per_star,
+            size=min(len(samples), conf.requested_samples_per_star),
             replace=False)
         sub_samples[source_id] = samples[idx]
 

@@ -53,7 +53,7 @@ def combine_metadata(run_path, overwrite=False):
         'unimodal',
         'joker_completed',
         'mcmc_completed',
-        'mcmc_success',
+        'mcmc_status',
         'gelman_rubin_max',
         'constant_ln_likelihood',
         'robust_constant_ln_likelihood',
@@ -74,7 +74,8 @@ def combine_metadata(run_path, overwrite=False):
     master = at.unique(master, keys=c.source_id_colname)
 
     master['mcmc_completed'] = master['mcmc_completed'].filled(False)
-    master['mcmc_success'] = master['mcmc_success'].filled(False)
+    master['mcmc_status'] = master['mcmc_status'].filled(-1)
+    master['gelman_rubin_max'] = master['gelman_rubin_max'].filled(np.nan)
     if hasattr(master['joker_completed'], 'filled'):
         master['joker_completed'] = master['joker_completed'].filled(False)
 
@@ -87,8 +88,8 @@ def combine_metadata(run_path, overwrite=False):
             mcmc_colname = colname
 
         print(f"Filling {colname} with {mcmc_colname}")
-        master[colname][master['mcmc_success']] = \
-            master[mcmc_colname][master['mcmc_success']]
+        master[colname][master['mcmc_status']] = \
+            master[mcmc_colname][master['mcmc_status']]
 
     master = at.QTable(master)
 
