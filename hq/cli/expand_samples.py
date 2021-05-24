@@ -1,10 +1,7 @@
-# Standard library
-import sys
-
 # Third-party
 import astropy.table as at
 import numpy as np
-import tables as tb
+import h5py
 from tqdm import tqdm
 import thejoker as tj
 
@@ -16,23 +13,26 @@ from hq.config import Config
 def worker(task):
     conf = task['conf']
 
-    conf['output_path'].mkdir(exist_ok=True)
+    task['output_path'].mkdir(exist_ok=True)
 
-    for row in task['metadata']:
-        filename = task['output_path'] / f"{row[conf.source_id_colname]}.fits"
-        if filename.exists() and not task['overwrite']:
-            continue
+    with h5py.File(conf.joker_results_file, 'r') as joker_f:
+        with h5py.File(conf.mcmc_results_file, 'r') as mcmc_f:
+            for row in task['metadata']:
+                source_id = str(row[conf.source_id_colname]).strip()
+                filename = task['output_path'] / f"{source_id}.fits"
+                if filename.exists() and not task['overwrite']:
+                    continue
 
-        # TODO: should this be configurable?
-        if 0 < row['mcmc_status'] <= 2:
-            results_file = conf.mcmc_results_file
-        else:
-            results_file = conf.joker_results_file
+                # TODO: should this be configurable?
+                if 0 < row['mcmc_status'] <= 2:
+                    results_f = mcmc_f
+                else:
+                    results_f = joker_f
 
-        with tb.open_file(results_file, 'r') as f:
-            samples = tj.JokerSamples.read(f.root[conf.source_id_colname])
+                samples = tj.JokerSamples.read(
+                    results_f[f'{source_id}'], path='samples')
 
-        samples.write(filename, overwrite=True)
+                samples.write(str(filename), overwrite=True)
 
 
 def expand_samples(run_path, pool, overwrite=False):
@@ -40,6 +40,9 @@ def expand_samples(run_path, pool, overwrite=False):
     logger.debug(f'Loaded config for run {run_path}')
 
     meta = at.Table.read(conf.metadata_file)
+    src = at.Table.read(conf.input_data_file)
+    meta = at.join(meta, src, keys=conf.source_id_colname, join_type='inner')
+    meta = at.unique(meta, conf.source_id_colname)
 
     root_output_path = conf.cache_path / 'samples'
     root_output_path.mkdir(exist_ok=True)
