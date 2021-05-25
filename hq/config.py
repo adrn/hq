@@ -214,4 +214,5 @@ class Config:
     def __getstate__(self):
         """Ensure that the cache does not get pickled with the object"""
         state = {k: v for k, v in self.__dict__.items() if k != '_cache'}
+        state['_cache'] = {}
         return state.copy()
