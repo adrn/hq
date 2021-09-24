@@ -29,6 +29,7 @@ class Config:
     # Data specification
     rv_colname: str = None
     rv_error_colname: str = None
+    rv_unit: str = 'km/s'
     time_colname: str = None  # e.g., 'JD'
     time_format: str = 'jd'  # passed to astropy.time.Time()
     time_scale: str = 'tdb'  # passed to astropy.time.Time()
@@ -168,8 +169,15 @@ class Config:
         t = Time(visits[self.time_colname].astype('f8'),
                  format=self.time_format,
                  scale=self.time_scale)
-        rv = visits[self.rv_colname].astype('f8') * u.km/u.s
-        rv_err = visits[self.rv_error_colname].astype('f8') * u.km/u.s
+        rv_unit = u.Unit(self.rv_unit)
+
+        rv = u.Quantity(visits[self.rv_colname].astype('f8'))
+        rv_err = u.Quantity(visits[self.rv_error_colname].astype('f8'))
+
+        if rv.unit == u.one:
+            rv = rv * rv_unit
+            rv_err = rv_err * rv_unit
+
         return RVData(t=t, rv=rv, rv_err=rv_err)
 
     def get_data_samples(self, source_id, mcmc=False):
