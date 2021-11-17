@@ -57,7 +57,7 @@ def make_prior_cache(run_path, pool, overwrite, seed, n_batches=None):
     if n_batches is None:
         n_batches = max(pool.size, 1)
 
-    prior = c.get_prior()
+    prior, model = c.get_prior()
     prior.sample(size=1)  # initialize
     tasks = batch_tasks(c.n_prior_samples, n_batches,
                         args=(prior, random_state))
