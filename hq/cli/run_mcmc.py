@@ -110,7 +110,8 @@ def run_mcmc(run_path, index, seed=None, overwrite=False):
             target_accept=conf.mcmc_target_accept)
 
     stat_names.extend([x for x in mcmc_init.keys() if x not in stat_names])
-    summ = az.summary(trace.posterior, var_names=stat_names)
+    # summ = az.summary(trace.posterior, var_names=stat_names)
+    summ = az.summary(trace.posterior)
     with open(this_cache_path / 'sample-stats.csv', 'w') as f:
         f.write(summ.to_csv())
 
