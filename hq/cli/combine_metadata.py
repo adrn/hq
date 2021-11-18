@@ -21,7 +21,6 @@ def combine_metadata(run_path, overwrite=False):
 
     meta = at.Table.read(c.metadata_joker_file)
     mcmc_meta = at.Table.read(c.metadata_mcmc_file)
-    constant = at.Table.read(c.constant_results_file)
 
     final_colnames = [
         c.source_id_colname,
@@ -54,18 +53,25 @@ def combine_metadata(run_path, overwrite=False):
         'joker_completed',
         'mcmc_completed',
         'mcmc_status',
-        'gelman_rubin_max',
-        'constant_ln_likelihood',
-        'robust_constant_ln_likelihood',
-        'robust_constant_mean',
-        'robust_constant_scatter',
-        'robust_constant_success',
-        'robust_linear_ln_likelihood',
-        'robust_linear_a',
-        'robust_linear_b',
-        'robust_linear_scatter',
-        'robust_linear_success'
+        'gelman_rubin_max'
     ]
+
+    if c.constant_results_file.exists():
+        constant = at.Table.read(c.constant_results_file)
+
+        more_cols = [
+            'constant_ln_likelihood',
+            'robust_constant_ln_likelihood',
+            'robust_constant_mean',
+            'robust_constant_scatter',
+            'robust_constant_success',
+            'robust_linear_ln_likelihood',
+            'robust_linear_a',
+            'robust_linear_b',
+            'robust_linear_scatter',
+            'robust_linear_success'
+        ]
+        final_colnames.extend(more_cols)
 
     master = at.join(meta, mcmc_meta, keys=c.source_id_colname,
                      join_type='left',
@@ -97,9 +103,10 @@ def combine_metadata(run_path, overwrite=False):
         if col.endswith('_err'):
             master[col][~master['mcmc_completed']] = np.nan
 
-    # load results from running run_fit_constant.py:
-    master = at.join(master, constant, keys=c.source_id_colname,
-                     join_type='left')
-    master = at.unique(master, keys=c.source_id_colname)
+    if c.constant_results_file.exists():
+        # load results from running run_fit_constant.py:
+        master = at.join(master, constant, keys=c.source_id_colname,
+                         join_type='left')
+        master = at.unique(master, keys=c.source_id_colname)
 
     master[final_colnames].write(c.metadata_file, overwrite=True)
