@@ -32,6 +32,7 @@ source_id_colname: null  # REQUIRED
 ## time, and radial velocity uncertainty data:
 rv_colname: null  # REQUIRED
 rv_error_colname: null  # REQUIRED
+rv_unit: 'km/s'  # any unit string that can be parsed by astropy.units
 time_colname: null  # REQUIRED
 time_format: null  # REQUIRED (e.g., 'jd' or 'mjd')
 time_scale: 'utc'  # (e.g., 'utc' or 'tdb' for Solar System barycentric)
