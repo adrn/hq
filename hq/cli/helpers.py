@@ -58,7 +58,7 @@ def get_parser(description="", loggers=None, multiproc_options=True):
                 from schwimmbad.mpi import MPIPool
 
                 Pool = MPIPool
-                kw = dict()
+                kw = dict(use_dill=True)
             elif multiproc_options and parsed.mpiasync:
                 from schwimmbad.mpi import MPIAsyncPool
 
