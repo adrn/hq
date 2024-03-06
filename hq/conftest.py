@@ -5,41 +5,21 @@
 
 import os
 
-from astropy.version import version as astropy_version
-
-from pytest_astropy_header.display import (
-    PYTEST_HEADER_MODULES,
-    TESTED_VERSIONS,
-    pytest_report_header as astropy_header)
+from pytest_astropy_header.display import PYTEST_HEADER_MODULES, TESTED_VERSIONS
 
 # pytest fixtures:
-from .tests.fixtures import make_config
 
 
 def pytest_configure(config):
-
     config.option.astropy_header = True
 
     # Customize the following lines to add/remove entries from the list of
     # packages for which version numbers are displayed when running the tests.
-    PYTEST_HEADER_MODULES['thejoker'] = 'thejoker'
-    PYTEST_HEADER_MODULES['twobody'] = 'twobody'
-    PYTEST_HEADER_MODULES['schwimmbad'] = 'schwimmbad'
+    PYTEST_HEADER_MODULES["thejoker"] = "thejoker"
+    PYTEST_HEADER_MODULES["twobody"] = "twobody"
+    PYTEST_HEADER_MODULES["schwimmbad"] = "schwimmbad"
 
     from . import __version__
+
     packagename = os.path.basename(os.path.dirname(__file__))
     TESTED_VERSIONS[packagename] = __version__
-
-
-# Uncomment the last two lines in this block to treat all DeprecationWarnings as
-# exceptions. For Astropy v2.0 or later, there are 2 additional keywords,
-# as follow (although default should work for most cases).
-# To ignore some packages that produce deprecation warnings on import
-# (in addition to 'compiler', 'scipy', 'pygments', 'ipykernel', and
-# 'setuptools'), add:
-#     modules_to_ignore_on_import=['module_1', 'module_2']
-# To ignore some specific deprecation warning messages for Python version
-# MAJOR.MINOR or later, add:
-#     warnings_to_ignore_by_pyver={(MAJOR, MINOR): ['Message to ignore']}
-# from astropy.tests.helper import enable_deprecations_as_exceptions  # noqa
-# enable_deprecations_as_exceptions()

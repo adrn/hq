@@ -32,7 +32,7 @@ Example pipeline
   template configuration files that will be needed by ``hq`` to run the rest of
   the pipeline. In particular, this will create a "config.yml" file, which
   contains the actual configurable values, and a "prior.py" file, which contains
-  the pymc3 model specification of the prior used by The Joker and MCMC to
+  the pymc model specification of the prior used by The Joker and MCMC to
   generate the orbital parameter samplings.
 
 * **Edit the config files**: You will need to edit both of
@@ -76,7 +76,7 @@ Example pipeline
 
     hq analyze_joker
 
-* TODO: HQ_THEANO_PATH=/tmp/theano_cache
+* TODO: HQ_PYTENSOR_PATH=/tmp/pytensor_cache
 
 * **Run standard MCMC on the unimodal samplings**: TODO::
 

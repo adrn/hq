@@ -82,7 +82,7 @@ rerun_n_prior_samples: 10_000_000
 ## Sampling parameters for MCMC:
 ##
 
-## These parameters are passed directly to pymc3.sample()
+## These parameters are passed directly to pymc.sample()
 mcmc_tune_steps: 1000
 mcmc_draw_steps: 1000
 mcmc_chains: 4
