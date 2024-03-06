@@ -67,7 +67,7 @@ randomize_prior_order: True
 ## Sampling parameters for MCMC:
 ##
 
-## These parameters are passed directly to pymc3.sample()
+## These parameters are passed directly to pymc.sample()
 tune: 100
 draws: 100
 

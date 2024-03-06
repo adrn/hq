@@ -1,9 +1,9 @@
 # Imports we typically need for defining the prior:
 import astropy.units as u
-import pymc3 as pm
-import exoplanet.units as xu
-from exoplanet.distributions import Angle
+import pymc as pm
 import thejoker as tj
+import thejoker.units as xu
+from pymc_ext.distributions import angle
 
 # TODO: update these to use get_prior() and get_prior_mcmc()
 
@@ -11,28 +11,23 @@ import thejoker as tj
 # should be changed to real values!
 with pm.Model() as model:
     # Set up the default Joker prior:
-    prior = tj.JokerPrior.default(
-        P_min=None, P_max=None,
-        sigma_K0=None,
-        sigma_v=None
-    )
+    prior = tj.JokerPrior.default(P_min=None, P_max=None, sigma_K0=None, sigma_v=None)
 
 with pm.Model() as model:
     # See note above: when running MCMC, we will sample in the parameters
     # (M0 - omega, omega) instead of (M0, omega)
-    M0_m_omega = xu.with_unit(Angle('M0_m_omega'), u.radian)
-    omega = xu.with_unit(Angle('omega'), u.radian)
-    M0 = xu.with_unit(pm.Deterministic('M0', M0_m_omega + omega),
-                      u.radian)
+    M0_m_omega = xu.with_unit(angle("M0_m_omega"), u.radian)
+    omega = xu.with_unit(angle("omega"), u.radian)
+    M0 = xu.with_unit(pm.Deterministic("M0", M0_m_omega + omega), u.radian)
 
     prior_mcmc = tj.JokerPrior.default(
-        P_min=None, P_max=None,
+        P_min=None,
+        P_max=None,
         sigma_K0=None,
         sigma_v=None,
-        pars={'M0': M0, 'omega': omega}
+        pars={"M0": M0, "omega": omega},
     )
 
 
 def custom_init_mcmc(**kwargs):
     """TODO: describe this"""
-    pass
