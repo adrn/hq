@@ -60,7 +60,13 @@ def worker(task):
             trace = az.from_netcdf(init_mcmc_file)
             init_samples = True
 
-        samples = inferencedata_to_samples(prior, trace, data)
+        try:
+            samples = inferencedata_to_samples(prior, trace, data)
+        except:
+            logger.warning(
+                f"{source_id}: MCMC sample data failed to load at {init_mcmc_file}")
+
+            continue
 
         row = compute_metadata(conf, samples, data, MAP_err=True)
         row[conf.source_id_colname] = source_id
