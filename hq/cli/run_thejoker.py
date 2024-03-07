@@ -17,9 +17,7 @@ pytensor.config.reoptimize_unpickled_function = False
 pytensor.config.cxx = ""
 import h5py
 import numpy as np
-import thejoker as tj
 from schwimmbad.utils import batch_tasks
-from thejoker.utils import read_batch
 
 from hq.config import Config
 from hq.log import logger
@@ -28,6 +26,10 @@ from hq.log import logger
 def worker(task):
     worker_idx, source_ids, c, prior, tmpdir, seed = task
     worker_id = worker_idx[0]
+
+    os.environ["MPLCONFIGDIR"] = f"/tmp/mpl-{worker_id}"
+    import thejoker as tj
+    from thejoker.utils import read_batch
 
     # This worker's results:
     results_filename = os.path.join(tmpdir, f"worker-{worker_id}.hdf5")
