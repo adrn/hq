@@ -129,8 +129,6 @@ class CLI:
 
     def run_thejoker(self):
         """Run The Joker on the input data"""
-        from thejoker.logging import logger as joker_logger
-
         from .run_thejoker import run_thejoker
 
         parser = get_parser(
@@ -138,7 +136,7 @@ class CLI:
                 "This command is the main workhorse for HQ: it runs The Joker "
                 "on all of the input data and caches the samplings."
             ),
-            loggers=[logger, joker_logger],
+            loggers=[logger],
         )
         # HACK
         parser.usage = "hq run_thejoker" + parser.format_usage()[9:]
