@@ -4,16 +4,7 @@ import astropy.table as at
 import astropy.units as u
 import h5py
 import numpy as np
-import thejoker as tj
 from astropy.stats import median_absolute_deviation as MAD
-from thejoker.multiproc_helpers import batch_tasks
-from thejoker.samples_analysis import (
-    is_P_unimodal,
-    max_phase_gap,
-    periods_spanned,
-    phase_coverage,
-    phase_coverage_per_period,
-)
 from tqdm import tqdm
 
 from hq.config import Config
@@ -21,6 +12,14 @@ from hq.log import logger
 
 
 def compute_metadata(c, samples, data, MAP_err=False):
+    from thejoker.samples_analysis import (
+        is_P_unimodal,
+        max_phase_gap,
+        periods_spanned,
+        phase_coverage,
+        phase_coverage_per_period,
+    )
+
     row = {}
     row["n_visits"] = len(data)
     row["baseline"] = (data.t.mjd.max() - data.t.mjd.min()) * u.day
@@ -72,6 +71,8 @@ def compute_metadata(c, samples, data, MAP_err=False):
 
 
 def worker(task):
+    import thejoker as tj
+
     source_ids, worker_id, c = task
 
     logger.debug(f"Worker {worker_id}: {len(source_ids)} stars left to process")
@@ -124,6 +125,8 @@ def worker(task):
 
 
 def analyze_joker_samplings(run_path, pool):
+    from thejoker.multiproc_helpers import batch_tasks
+
     c = Config(run_path / "config.yml")
 
     # numbers we need to validate
