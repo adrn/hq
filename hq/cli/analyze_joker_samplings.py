@@ -71,9 +71,10 @@ def compute_metadata(c, samples, data, MAP_err=False):
 
 
 def worker(task):
-    import thejoker as tj
-
     source_ids, worker_id, c = task
+
+    os.environ["MPLCONFIGDIR"] = f"/tmp/mpl-{worker_id}"
+    import thejoker as tj
 
     logger.debug(f"Worker {worker_id}: {len(source_ids)} stars left to process")
 
